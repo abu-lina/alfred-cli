@@ -55,7 +55,7 @@ const prJson = JSON.stringify([
 ]);
 
 const issueJson = JSON.stringify([
-  { number: 10, title: 'todo item', labels: [{ name: 'ready' }] },
+  { number: 10, title: 'todo item', labels: [{ name: 'ready' }], createdAt: '2026-01-20T08:00:00Z' },
 ]);
 
 describe('parseGhPrJson', () => {
@@ -108,10 +108,10 @@ describe('parseGhPrJson', () => {
 });
 
 describe('parseGhIssueJson', () => {
-  it('parses gh issue list JSON into typed array', () => {
+  it('parses gh issue list JSON into typed array with createdAt', () => {
     const issues = parseGhIssueJson(issueJson);
     expect(issues).toEqual([
-      { number: 10, title: 'todo item', labels: ['ready'] },
+      { number: 10, title: 'todo item', labels: ['ready'], createdAt: new Date('2026-01-20T08:00:00Z').getTime() },
     ]);
   });
 });

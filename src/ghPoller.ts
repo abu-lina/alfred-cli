@@ -22,6 +22,7 @@ interface GhIssueRaw {
   number: number;
   title: string;
   labels: { name: string }[];
+  createdAt: string;
 }
 
 function checksState(rollup?: { state: string }[]): PullRequest['checksStatus'] {
@@ -54,11 +55,12 @@ export function parseGhIssueJson(json: string): GitHubState['openIssues'] {
     number: i.number,
     title: i.title,
     labels: i.labels.map(l => l.name),
+    createdAt: new Date(i.createdAt).getTime(),
   }));
 }
 
 const PR_FIELDS = 'number,title,state,isDraft,url,headRefName,labels,reviewDecision,statusCheckRollup,createdAt';
-const ISSUE_FIELDS = 'number,title,labels';
+const ISSUE_FIELDS = 'number,title,labels,createdAt';
 
 export async function pollGitHub(project: ProjectConfig): Promise<GitHubState> {
   const [prResult, issueResult] = await Promise.all([
