@@ -126,6 +126,107 @@ describe('loadConfig', () => {
     });
     expect(() => loadConfig(p)).toThrow(/projects\[0\]\.repo.*owner\/name/i);
   });
+
+  // #13 — hardened coverage
+
+  it('throws when root JSON is an array', () => {
+    const p = writeConfig([]);
+    expect(() => loadConfig(p)).toThrow(/config must be a json object/i);
+  });
+
+  it('throws when root JSON is a primitive string', () => {
+    const p = tmpFile();
+    dirs.push(join(p, '..'));
+    writeFileSync(p, '"string"');
+    expect(() => loadConfig(p)).toThrow(/config must be a json object/i);
+  });
+
+  it('throws when root JSON is null', () => {
+    const p = tmpFile();
+    dirs.push(join(p, '..'));
+    writeFileSync(p, 'null');
+    expect(() => loadConfig(p)).toThrow(/config must be a json object/i);
+  });
+
+  it('throws when a project entry is not an object', () => {
+    const p = writeConfig({
+      projects: ['not-an-object'],
+      github: { pollIntervalSeconds: 60 },
+    });
+    expect(() => loadConfig(p)).toThrow(/projects\[0\] must be an object/i);
+  });
+
+  it('throws when pollIntervalSeconds is exactly zero', () => {
+    const p = writeConfig({
+      projects: [validProject],
+      github: { pollIntervalSeconds: 0 },
+    });
+    expect(() => loadConfig(p)).toThrow(/github\.pollIntervalSeconds.*positive/i);
+  });
+
+  it('throws when projects is not an array', () => {
+    const p = writeConfig({
+      projects: 'oops',
+      github: { pollIntervalSeconds: 60 },
+    });
+    expect(() => loadConfig(p)).toThrow(/projects.*required.*array/i);
+  });
+
+  it('throws when github is an array', () => {
+    const p = writeConfig({
+      projects: [validProject],
+      github: [],
+    });
+    expect(() => loadConfig(p)).toThrow(/github.*required.*object/i);
+  });
+
+  it('throws when a project field is an empty string', () => {
+    const p = writeConfig({
+      projects: [{ ...validProject, name: '' }],
+      github: { pollIntervalSeconds: 60 },
+    });
+    expect(() => loadConfig(p)).toThrow(/projects\[0\]\.name.*required.*non-empty/i);
+  });
+
+  it('throws when a project field has wrong type', () => {
+    const p = writeConfig({
+      projects: [{ ...validProject, name: 123 }],
+      github: { pollIntervalSeconds: 60 },
+    });
+    expect(() => loadConfig(p)).toThrow(/projects\[0\]\.name.*required.*non-empty string/i);
+  });
+
+  it('rejects prefix edge cases: single char, three chars, digits', () => {
+    for (const prefix of ['A', 'ABC', 'A1']) {
+      const p = writeConfig({
+        projects: [{ ...validProject, prefix }],
+        github: { pollIntervalSeconds: 60 },
+      });
+      expect(() => loadConfig(p)).toThrow(/projects\[0\]\.prefix.*2 uppercase/i);
+    }
+  });
+
+  it('rejects repo with multiple slashes', () => {
+    const p = writeConfig({
+      projects: [{ ...validProject, repo: 'owner/name/extra' }],
+      github: { pollIntervalSeconds: 60 },
+    });
+    expect(() => loadConfig(p)).toThrow(/projects\[0\]\.repo.*owner\/name/i);
+  });
+
+  it('silently ignores non-string theme', () => {
+    const p = writeConfig({ ...validConfig, theme: 123 });
+    const cfg = loadConfig(p);
+    expect(cfg.theme).toBeUndefined();
+  });
+
+  it('includes correct index in multi-project error messages', () => {
+    const p = writeConfig({
+      projects: [validProject, { ...validProject, prefix: 'bad' }],
+      github: { pollIntervalSeconds: 60 },
+    });
+    expect(() => loadConfig(p)).toThrow(/projects\[1\]\.prefix.*2 uppercase/i);
+  });
 });
 
 describe('saveConfig', () => {
