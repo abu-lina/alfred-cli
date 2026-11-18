@@ -6,7 +6,9 @@ import { Init } from './init.js';
 import { DEFAULT_CONFIG_PATH, loadConfig } from './config.js';
 import { createRefreshManager } from './refresh.js';
 import { classifyCards } from './board.js';
+import { buildInbox } from './inbox.js';
 import { BoardView } from './BoardView.js';
+import { InboxView } from './InboxView.js';
 import { HeaderBar } from './HeaderBar.js';
 import { TasksView } from './TasksView.js';
 import { useNavigation } from './useNavigation.js';
@@ -60,6 +62,7 @@ function App() {
   if (!config) return <Text>Loading...</Text>;
 
   const columns = classifyCards(config.projects, state);
+  const inboxItems = buildInbox(config.projects, state);
   const tasksRoute = nav.view.type === 'tasks' ? nav.view : null;
   const filesState = tasksRoute
     ? state.files.get(config.projects.find(p => p.repo === tasksRoute.repo)?.path ?? '')
@@ -70,6 +73,9 @@ function App() {
   return (
     <Box flexDirection="column">
       <HeaderBar view={nav.view} canGoBack={nav.canGoBack} onBack={nav.back} onNavigateTo={nav.navigateTo} />
+      {nav.view.type === 'inbox' && (
+        <InboxView items={inboxItems} onSelect={(item) => nav.push({ type: 'tasks', repo: item.repo, issue: item.issue })} />
+      )}
       {nav.view.type === 'board' && (
         <BoardView columns={columns} onSelect={(card) => nav.push({ type: 'tasks', repo: card.repo, issue: card.issue })} />
       )}
