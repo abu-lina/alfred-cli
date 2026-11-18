@@ -80,6 +80,10 @@ describe('parseGhPrJson', () => {
     expect(parseGhPrJson('[]')).toEqual([]);
   });
 
+  it('returns empty array for malformed JSON', () => {
+    expect(parseGhPrJson('not json')).toEqual([]);
+  });
+
   it('maps FAILURE status check to fail', () => {
     const json = JSON.stringify([{
       number: 2, title: 'x', state: 'OPEN', isDraft: false,
@@ -108,6 +112,10 @@ describe('parseGhPrJson', () => {
 });
 
 describe('parseGhIssueJson', () => {
+  it('returns empty array for malformed JSON', () => {
+    expect(parseGhIssueJson('{')).toEqual([]);
+  });
+
   it('parses gh issue list JSON into typed array with createdAt', () => {
     const issues = parseGhIssueJson(issueJson);
     expect(issues).toEqual([
