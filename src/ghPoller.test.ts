@@ -80,6 +80,10 @@ describe('parseGhPrJson', () => {
     expect(parseGhPrJson('[]')).toEqual([]);
   });
 
+  it('throws on malformed JSON so allSettled can catch it', () => {
+    expect(() => parseGhPrJson('not json')).toThrow();
+  });
+
   it('maps FAILURE status check to fail', () => {
     const json = JSON.stringify([{
       number: 2, title: 'x', state: 'OPEN', isDraft: false,
@@ -108,6 +112,10 @@ describe('parseGhPrJson', () => {
 });
 
 describe('parseGhIssueJson', () => {
+  it('throws on malformed JSON so allSettled can catch it', () => {
+    expect(() => parseGhIssueJson('{')).toThrow();
+  });
+
   it('parses gh issue list JSON into typed array with createdAt', () => {
     const issues = parseGhIssueJson(issueJson);
     expect(issues).toEqual([
