@@ -134,4 +134,36 @@ describe('BoardView', () => {
     expect(selected[0]!.issue).toBe(2);
     inst.unmount();
   });
+
+  it('clamps focusIndex when cards disappear', async () => {
+    const cols: BoardColumns = {
+      needsYou: [card({ issue: 1, prefix: 'AA', column: 'needsYou' })],
+      inProgress: [card({ issue: 2, prefix: 'BB', column: 'inProgress' })],
+      inReview: [],
+      todo: [],
+    };
+    const selected: BoardCard[] = [];
+    const inst = render(<BoardView columns={cols} onSelect={(c) => selected.push(c)} />);
+    await wait();
+    // Move focus to card index 1
+    inst.stdin.write('\t');
+    await wait();
+
+    // Re-render with only 1 card — focusIndex was 1, should clamp to 0
+    const shrunk: BoardColumns = {
+      needsYou: [card({ issue: 1, prefix: 'AA', column: 'needsYou' })],
+      inProgress: [],
+      inReview: [],
+      todo: [],
+    };
+    inst.rerender(<BoardView columns={shrunk} onSelect={(c) => selected.push(c)} />);
+    await wait();
+
+    // Press enter — should select the clamped card (issue 1), not crash
+    inst.stdin.write('\r');
+    await wait();
+    expect(selected).toHaveLength(1);
+    expect(selected[0]!.issue).toBe(1);
+    inst.unmount();
+  });
 });

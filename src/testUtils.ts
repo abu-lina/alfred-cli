@@ -1,7 +1,5 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { render } from 'ink-testing-library';
-
-type AnyFn = () => unknown;
 
 export function renderHook<T>(hook: () => T) {
   const resultRef = { current: undefined as T };

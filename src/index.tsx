@@ -61,7 +61,7 @@ function App() {
   const columns = classifyCards(config.projects, state);
   return (
     <Box flexDirection="column">
-      <HeaderBar view={nav.view} canGoBack={nav.canGoBack} onBack={nav.back} />
+      <HeaderBar view={nav.view} canGoBack={nav.canGoBack} onBack={nav.back} onNavigateTo={nav.navigateTo} />
       {nav.view.type === 'board' && (
         <BoardView columns={columns} onSelect={(card) => nav.push({ type: 'tasks', repo: card.repo, issue: card.issue })} />
       )}
