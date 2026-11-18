@@ -23,10 +23,12 @@ const config: Config = {
   github: { pollIntervalSeconds: 60 },
 };
 
+const flush = () => vi.advanceTimersByTimeAsync(0);
+
 describe('createRefreshManager', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.mocked(ghPoller.pollGitHub).mockReturnValue({
+    vi.mocked(ghPoller.pollGitHub).mockResolvedValue({
       prs: [],
       openIssues: [],
       updatedAt: 1000,
@@ -40,9 +42,10 @@ describe('createRefreshManager', () => {
     vi.restoreAllMocks();
   });
 
-  it('starts all three data sources and returns initial state', () => {
+  it('starts all three data sources and returns initial state', async () => {
     const onChange = vi.fn();
     const mgr = createRefreshManager(config, onChange);
+    await flush();
 
     expect(vi.mocked(ghPoller.pollGitHub)).toHaveBeenCalledWith(project);
     expect(vi.mocked(fileWatcher.watchProject)).toHaveBeenCalledWith(
@@ -60,40 +63,44 @@ describe('createRefreshManager', () => {
     mgr.stop();
   });
 
-  it('polls GitHub on the configured interval', () => {
+  it('polls GitHub on the configured interval', async () => {
     const onChange = vi.fn();
     const mgr = createRefreshManager(config, onChange);
+    await flush();
 
     expect(vi.mocked(ghPoller.pollGitHub)).toHaveBeenCalledTimes(1);
 
-    vi.advanceTimersByTime(60_000);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await flush();
     expect(vi.mocked(ghPoller.pollGitHub)).toHaveBeenCalledTimes(2);
 
-    vi.advanceTimersByTime(60_000);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await flush();
     expect(vi.mocked(ghPoller.pollGitHub)).toHaveBeenCalledTimes(3);
 
     mgr.stop();
   });
 
-  it('calls onChange when GitHub data refreshes', () => {
+  it('calls onChange when GitHub data refreshes', async () => {
     const onChange = vi.fn();
     const mgr = createRefreshManager(config, onChange);
+    await flush();
 
     expect(onChange).toHaveBeenCalledTimes(1);
 
-    vi.advanceTimersByTime(60_000);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await flush();
     expect(onChange).toHaveBeenCalledTimes(2);
 
     mgr.stop();
   });
 
-  it('marks github source as error when pollGitHub throws', () => {
-    vi.mocked(ghPoller.pollGitHub).mockImplementation(() => {
-      throw new Error('gh auth expired');
-    });
+  it('marks github source as error when pollGitHub rejects', async () => {
+    vi.mocked(ghPoller.pollGitHub).mockRejectedValue(new Error('gh auth expired'));
 
     const onChange = vi.fn();
     const mgr = createRefreshManager(config, onChange);
+    await flush();
 
     expect(mgr.getState().sources.github).toBe('error');
     expect(onChange).toHaveBeenCalled();
@@ -101,7 +108,7 @@ describe('createRefreshManager', () => {
     mgr.stop();
   });
 
-  it('marks rex source as error when rexEvents calls onError', () => {
+  it('marks rex source as error when rexEvents calls onError', async () => {
     let errorCb: ((err: Error) => void) | undefined;
     vi.mocked(rexEvents.createRexStream).mockImplementation((cbs) => {
       errorCb = cbs.onError;
@@ -110,6 +117,7 @@ describe('createRefreshManager', () => {
 
     const onChange = vi.fn();
     const mgr = createRefreshManager(config, onChange);
+    await flush();
 
     expect(mgr.getState().sources.rex).toBe('ok');
 
@@ -119,7 +127,7 @@ describe('createRefreshManager', () => {
     mgr.stop();
   });
 
-  it('updates file watch state when onSignal fires', () => {
+  it('updates file watch state when onSignal fires', async () => {
     let signalCb: ((s: LaneSignal) => void) | undefined;
     vi.mocked(fileWatcher.watchProject).mockImplementation((_path, cbs) => {
       signalCb = cbs.onSignal;
@@ -128,6 +136,7 @@ describe('createRefreshManager', () => {
 
     const onChange = vi.fn();
     const mgr = createRefreshManager(config, onChange);
+    await flush();
 
     signalCb!({ type: 'block', issue: 5, message: 'stuck', timestamp: 1000 });
 
@@ -138,14 +147,14 @@ describe('createRefreshManager', () => {
     mgr.stop();
   });
 
-  it('marks github ok when at least one project succeeds (multi-project)', () => {
+  it('marks github ok when at least one project succeeds (multi-project)', async () => {
     const secondProject: ProjectConfig = {
       name: 'other', prefix: 'OT', path: '/tmp/other', repo: 'owner/other', rexSession: 'other-foreman',
     };
     const multiConfig: Config = { projects: [project, secondProject], github: { pollIntervalSeconds: 60 } };
 
     let callCount = 0;
-    vi.mocked(ghPoller.pollGitHub).mockImplementation(() => {
+    vi.mocked(ghPoller.pollGitHub).mockImplementation(async () => {
       callCount++;
       if (callCount === 1) throw new Error('fail');
       return { prs: [], openIssues: [], updatedAt: 1000 };
@@ -153,12 +162,13 @@ describe('createRefreshManager', () => {
 
     const onChange = vi.fn();
     const mgr = createRefreshManager(multiConfig, onChange);
+    await flush();
 
     expect(mgr.getState().sources.github).toBe('ok');
     mgr.stop();
   });
 
-  it('caps rexEvents array to prevent unbounded growth', () => {
+  it('caps rexEvents array to prevent unbounded growth', async () => {
     let eventCb: ((event: import('./types.js').RexEvent) => void) | undefined;
     vi.mocked(rexEvents.createRexStream).mockImplementation((cbs) => {
       eventCb = cbs.onEvent;
@@ -167,6 +177,7 @@ describe('createRefreshManager', () => {
 
     const onChange = vi.fn();
     const mgr = createRefreshManager(config, onChange);
+    await flush();
 
     for (let i = 0; i < 600; i++) {
       eventCb!({ type: 'test', timestamp: i });
@@ -176,7 +187,7 @@ describe('createRefreshManager', () => {
     mgr.stop();
   });
 
-  it('stop cleans up all watchers and timers', () => {
+  it('stop cleans up all watchers and timers', async () => {
     const fileCleanup = vi.fn();
     const rexCleanup = vi.fn();
     vi.mocked(fileWatcher.watchProject).mockReturnValue(fileCleanup);
@@ -184,13 +195,15 @@ describe('createRefreshManager', () => {
 
     const onChange = vi.fn();
     const mgr = createRefreshManager(config, onChange);
+    await flush();
     mgr.stop();
 
     expect(fileCleanup).toHaveBeenCalled();
     expect(rexCleanup).toHaveBeenCalled();
 
     vi.mocked(ghPoller.pollGitHub).mockClear();
-    vi.advanceTimersByTime(120_000);
+    await vi.advanceTimersByTimeAsync(120_000);
+    await flush();
     expect(vi.mocked(ghPoller.pollGitHub)).not.toHaveBeenCalled();
   });
 });

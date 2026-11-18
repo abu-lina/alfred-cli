@@ -1,6 +1,9 @@
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import type { ProjectConfig } from './config.js';
 import type { PullRequest, GitHubState } from './types.js';
+
+const execFileAsync = promisify(execFile);
 
 interface GhPrRaw {
   number: number;
@@ -55,21 +58,23 @@ export function parseGhIssueJson(json: string): GitHubState['openIssues'] {
 const PR_FIELDS = 'number,title,state,isDraft,url,headRefName,labels,reviewDecision,statusCheckRollup';
 const ISSUE_FIELDS = 'number,title,labels';
 
-export function pollGitHub(project: ProjectConfig): GitHubState {
-  const prOut = execFileSync(
-    'gh',
-    ['pr', 'list', '--repo', project.repo, '--state', 'open', '--json', PR_FIELDS, '--limit', '100'],
-    { encoding: 'utf-8', timeout: 30_000 },
-  );
-  const issueOut = execFileSync(
-    'gh',
-    ['issue', 'list', '--repo', project.repo, '--state', 'open', '--json', ISSUE_FIELDS, '--limit', '200'],
-    { encoding: 'utf-8', timeout: 30_000 },
-  );
+export async function pollGitHub(project: ProjectConfig): Promise<GitHubState> {
+  const [prResult, issueResult] = await Promise.all([
+    execFileAsync(
+      'gh',
+      ['pr', 'list', '--repo', project.repo, '--state', 'open', '--json', PR_FIELDS, '--limit', '100'],
+      { encoding: 'utf-8', timeout: 30_000 },
+    ),
+    execFileAsync(
+      'gh',
+      ['issue', 'list', '--repo', project.repo, '--state', 'open', '--json', ISSUE_FIELDS, '--limit', '200'],
+      { encoding: 'utf-8', timeout: 30_000 },
+    ),
+  ]);
 
   return {
-    prs: parseGhPrJson(prOut),
-    openIssues: parseGhIssueJson(issueOut),
+    prs: parseGhPrJson(prResult.stdout),
+    openIssues: parseGhIssueJson(issueResult.stdout),
     updatedAt: Date.now(),
   };
 }

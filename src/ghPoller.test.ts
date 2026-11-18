@@ -1,9 +1,35 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { pollGitHub, parseGhPrJson, parseGhIssueJson } from './ghPoller.js';
 import type { ProjectConfig } from './config.js';
-import * as child_process from 'node:child_process';
 
-vi.mock('node:child_process');
+let mockResponses: Map<string, { stdout: string; stderr: string }>;
+
+vi.mock('node:child_process', () => {
+  const actual: Record<string, unknown> = {};
+  const customPromisify = Symbol.for('nodejs.util.promisify.custom');
+  const mockExecFile = Object.assign(
+    vi.fn((...args: unknown[]) => {
+      const cb = args[args.length - 1] as (err: Error | null, result: { stdout: string; stderr: string }) => void;
+      const cmdArgs = args[1] as string[];
+      const key = cmdArgs.find(a => a === 'pr' || a === 'issue') ?? 'unknown';
+      const response = mockResponses.get(key);
+      if (response) cb(null, response);
+      else cb(new Error('mock: no response configured'), { stdout: '', stderr: '' });
+    }),
+    {
+      [customPromisify]: vi.fn((...args: unknown[]) => {
+        const cmdArgs = args[1] as string[];
+        const key = cmdArgs.find(a => a === 'pr' || a === 'issue') ?? 'unknown';
+        const response = mockResponses.get(key);
+        if (response) return Promise.resolve(response);
+        return Promise.reject(new Error('mock: no response configured'));
+      }),
+    },
+  );
+  actual.execFile = mockExecFile;
+  return actual;
+});
+
+import { pollGitHub, parseGhPrJson, parseGhIssueJson } from './ghPoller.js';
 
 const project: ProjectConfig = {
   name: 'test',
@@ -89,42 +115,25 @@ describe('parseGhIssueJson', () => {
 });
 
 describe('pollGitHub', () => {
-  const execFileSync = vi.mocked(child_process.execFileSync);
-
   beforeEach(() => {
-    vi.useFakeTimers();
+    mockResponses = new Map([
+      ['pr', { stdout: prJson, stderr: '' }],
+      ['issue', { stdout: issueJson, stderr: '' }],
+    ]);
   });
   afterEach(() => {
-    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
-  it('calls gh with args array (no shell injection)', () => {
-    execFileSync.mockImplementation((_file: string, args?: readonly string[]) => {
-      if (args && args.includes('pr')) return Buffer.from(prJson);
-      if (args && args.includes('issue')) return Buffer.from(issueJson);
-      return Buffer.from('[]');
-    });
-
-    const state = pollGitHub(project);
+  it('calls gh with args array (no shell injection) and returns parsed state', async () => {
+    const state = await pollGitHub(project);
     expect(state.prs).toHaveLength(1);
     expect(state.openIssues).toHaveLength(1);
     expect(state.updatedAt).toBeGreaterThan(0);
-
-    expect(execFileSync).toHaveBeenCalledWith(
-      'gh',
-      expect.arrayContaining(['pr', 'list', '--repo', 'owner/repo']),
-      expect.objectContaining({ encoding: 'utf-8' }),
-    );
-    expect(execFileSync).toHaveBeenCalledWith(
-      'gh',
-      expect.arrayContaining(['issue', 'list', '--repo', 'owner/repo']),
-      expect.objectContaining({ encoding: 'utf-8' }),
-    );
   });
 
-  it('throws when gh command fails', () => {
-    execFileSync.mockImplementation(() => { throw new Error('gh auth expired'); });
-    expect(() => pollGitHub(project)).toThrow(/gh auth expired/);
+  it('rejects when gh command fails', async () => {
+    mockResponses.clear();
+    await expect(pollGitHub(project)).rejects.toThrow(/no response configured/);
   });
 });

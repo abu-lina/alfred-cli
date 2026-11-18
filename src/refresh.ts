@@ -24,8 +24,9 @@ export function createRefreshManager(
   const state = emptyRefreshState();
   const cleanups: (() => void)[] = [];
   let pollTimer: ReturnType<typeof setInterval> | null = null;
+  let stopped = false;
 
-  const notify = () => onChange(state);
+  const notify = () => { if (!stopped) onChange(state); };
 
   const ensureFileState = (path: string): FileWatchState => {
     let entry = state.files.get(path);
@@ -36,15 +37,20 @@ export function createRefreshManager(
     return entry;
   };
 
-  const doPoll = () => {
+  const doPoll = async () => {
     let anyOk = false;
     let anyError = false;
-    for (const project of config.projects) {
-      try {
-        const ghState = pollGitHub(project);
-        state.github.set(project.repo, ghState);
+    const results = await Promise.allSettled(
+      config.projects.map(async (project) => {
+        const ghState = await pollGitHub(project);
+        return { repo: project.repo, ghState };
+      }),
+    );
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        state.github.set(result.value.repo, result.value.ghState);
         anyOk = true;
-      } catch {
+      } else {
         anyError = true;
       }
     }
@@ -54,7 +60,7 @@ export function createRefreshManager(
 
   doPoll();
   const intervalMs = (config.github?.pollIntervalSeconds ?? 60) * 1000;
-  pollTimer = setInterval(doPoll, intervalMs);
+  pollTimer = setInterval(() => { doPoll(); }, intervalMs);
 
   for (const project of config.projects) {
     const fileState = ensureFileState(project.path);
@@ -98,6 +104,7 @@ export function createRefreshManager(
   return {
     getState: () => state,
     stop: () => {
+      stopped = true;
       if (pollTimer) {
         clearInterval(pollTimer);
         pollTimer = null;
