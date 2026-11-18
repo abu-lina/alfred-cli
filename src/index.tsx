@@ -59,7 +59,7 @@ function App() {
     buildStandup(config.projects, state).then(setStandupData).catch(() => {
       setStandupData({ blockers: [], sections: [], asOf: Date.now() });
     });
-  }, [nav.view.type === 'standup']);
+  }, [nav.view.type]);
 
   if (error) {
     return (
