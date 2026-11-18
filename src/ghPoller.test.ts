@@ -80,8 +80,8 @@ describe('parseGhPrJson', () => {
     expect(parseGhPrJson('[]')).toEqual([]);
   });
 
-  it('returns empty array for malformed JSON', () => {
-    expect(parseGhPrJson('not json')).toEqual([]);
+  it('throws on malformed JSON so allSettled can catch it', () => {
+    expect(() => parseGhPrJson('not json')).toThrow();
   });
 
   it('maps FAILURE status check to fail', () => {
@@ -112,8 +112,8 @@ describe('parseGhPrJson', () => {
 });
 
 describe('parseGhIssueJson', () => {
-  it('returns empty array for malformed JSON', () => {
-    expect(parseGhIssueJson('{')).toEqual([]);
+  it('throws on malformed JSON so allSettled can catch it', () => {
+    expect(() => parseGhIssueJson('{')).toThrow();
   });
 
   it('parses gh issue list JSON into typed array with createdAt', () => {

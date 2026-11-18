@@ -34,37 +34,29 @@ function checksState(rollup?: { state: string }[]): PullRequest['checksStatus'] 
 }
 
 export function parseGhPrJson(json: string): PullRequest[] {
-  try {
-    const raw: GhPrRaw[] = JSON.parse(json);
-    return raw.map(pr => ({
-      number: pr.number,
-      title: pr.title,
-      state: pr.state,
-      isDraft: pr.isDraft,
-      url: pr.url,
-      headRefName: pr.headRefName,
-      labels: pr.labels.map(l => l.name),
-      reviewDecision: pr.reviewDecision,
-      checksStatus: checksState(pr.statusCheckRollup),
-      createdAt: new Date(pr.createdAt).getTime(),
-    }));
-  } catch {
-    return [];
-  }
+  const raw: GhPrRaw[] = JSON.parse(json);
+  return raw.map(pr => ({
+    number: pr.number,
+    title: pr.title,
+    state: pr.state,
+    isDraft: pr.isDraft,
+    url: pr.url,
+    headRefName: pr.headRefName,
+    labels: pr.labels.map(l => l.name),
+    reviewDecision: pr.reviewDecision,
+    checksStatus: checksState(pr.statusCheckRollup),
+    createdAt: new Date(pr.createdAt).getTime(),
+  }));
 }
 
 export function parseGhIssueJson(json: string): GitHubState['openIssues'] {
-  try {
-    const raw: GhIssueRaw[] = JSON.parse(json);
-    return raw.map(i => ({
-      number: i.number,
-      title: i.title,
-      labels: i.labels.map(l => l.name),
-      createdAt: new Date(i.createdAt).getTime(),
-    }));
-  } catch {
-    return [];
-  }
+  const raw: GhIssueRaw[] = JSON.parse(json);
+  return raw.map(i => ({
+    number: i.number,
+    title: i.title,
+    labels: i.labels.map(l => l.name),
+    createdAt: new Date(i.createdAt).getTime(),
+  }));
 }
 
 const PR_FIELDS = 'number,title,state,isDraft,url,headRefName,labels,reviewDecision,statusCheckRollup,createdAt';
