@@ -1,5 +1,5 @@
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 
 export interface ProjectConfig {
   name: string;
@@ -102,4 +102,26 @@ export function loadConfig(filePath: string = DEFAULT_CONFIG_PATH): Config {
     github: { pollIntervalSeconds: gh['pollIntervalSeconds'] },
     theme,
   };
+}
+
+export function saveConfig(config: Config, filePath: string = DEFAULT_CONFIG_PATH): void {
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, JSON.stringify(config, null, 2) + '\n');
+}
+
+export function validateProject(project: ProjectConfig, existingPrefixes: string[]): string[] {
+  const errors: string[] = [];
+  if (!/^[A-Z]{2}$/.test(project.prefix)) {
+    errors.push('prefix must be 2 uppercase letters');
+  }
+  if (existingPrefixes.includes(project.prefix)) {
+    errors.push(`prefix "${project.prefix}" is already in use`);
+  }
+  if (!project.path.startsWith('/')) {
+    errors.push('path must be an absolute path');
+  }
+  if (!/^[^/]+\/[^/]+$/.test(project.repo)) {
+    errors.push('repo must be in owner/name format');
+  }
+  return errors;
 }
