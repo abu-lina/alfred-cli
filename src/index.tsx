@@ -87,7 +87,13 @@ if (!command || command === 'start' || command === 'board') {
     console.error("Run 'alf init' first");
     process.exit(1);
   }
-  const config = loadConfig();
+  let config;
+  try {
+    config = loadConfig();
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : String(e));
+    process.exit(1);
+  }
   render(<App config={config} />);
 } else if (command === 'init') {
   render(<Init configPath={DEFAULT_CONFIG_PATH} />);
