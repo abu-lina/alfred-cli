@@ -84,7 +84,7 @@ export function classifyCards(projects: ProjectConfig[], state: RefreshState): B
         title: issue.title,
         repo: project.repo,
         column: 'todo',
-        since: gh.updatedAt,
+        since: issue.createdAt,
       });
     }
   }

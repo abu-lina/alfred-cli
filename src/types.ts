@@ -13,7 +13,7 @@ export interface PullRequest {
 
 export interface GitHubState {
   prs: PullRequest[];
-  openIssues: { number: number; title: string; labels: string[] }[];
+  openIssues: { number: number; title: string; labels: string[]; createdAt: number }[];
   updatedAt: number;
 }
 

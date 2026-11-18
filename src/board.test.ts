@@ -38,7 +38,7 @@ function makeState(overrides: {
 describe('classifyCards', () => {
   it('puts a ready-labeled issue with no active lane into todo', () => {
     const state = makeState({
-      issues: [{ number: 10, title: 'New feature', labels: ['ready', 'type:feat'] }],
+      issues: [{ number: 10, title: 'New feature', labels: ['ready', 'type:feat'], createdAt: Date.now() - 3600_000 }],
     });
     const cols = classifyCards([PROJECT], state);
     expect(cols.todo).toHaveLength(1);
@@ -111,21 +111,30 @@ describe('classifyCards', () => {
   it('does not put a ready issue into todo if it has an active PR', () => {
     const state = makeState({
       prs: [{ number: 1, title: 'feat: thing', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/10-thing', labels: [], reviewDecision: '', checksStatus: 'pass', createdAt: Date.now() }],
-      issues: [{ number: 10, title: 'New feature', labels: ['ready'] }],
+      issues: [{ number: 10, title: 'New feature', labels: ['ready'], createdAt: Date.now() - 3600_000 }],
     });
     const cols = classifyCards([PROJECT], state);
     expect(cols.todo).toHaveLength(0);
+  });
+
+  it('uses issue createdAt for todo card since, not poll timestamp', () => {
+    const issueCreated = Date.now() - 86_400_000;
+    const state = makeState({
+      issues: [{ number: 11, title: 'Queued work', labels: ['ready'], createdAt: issueCreated }],
+    });
+    const cols = classifyCards([PROJECT], state);
+    expect(cols.todo[0]!.since).toBe(issueCreated);
   });
 
   it('includes cards from multiple projects', () => {
     const project2: ProjectConfig = { name: 'other', prefix: 'OT', path: '/tmp/other', repo: 'owner/other', rexSession: 'ot' };
     const gh2: GitHubState = {
       prs: [],
-      openIssues: [{ number: 1, title: 'Other todo', labels: ['ready'] }],
+      openIssues: [{ number: 1, title: 'Other todo', labels: ['ready'], createdAt: Date.now() - 3600_000 }],
       updatedAt: Date.now(),
     };
     const state = makeState({
-      issues: [{ number: 10, title: 'TP todo', labels: ['ready'] }],
+      issues: [{ number: 10, title: 'TP todo', labels: ['ready'], createdAt: Date.now() - 3600_000 }],
     });
     state.github.set('owner/other', gh2);
     state.files.set('/tmp/other', { signals: [], notes: [], reviews: [] });
