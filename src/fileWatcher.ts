@@ -88,11 +88,14 @@ function issueFromDirName(name: string): number {
 
 export function watchProject(projectPath: string, callbacks: WatchCallbacks): () => void {
   const watchers: FSWatcher[] = [];
+  const watchedDirs = new Set<string>();
   const worktreesDir = join(projectPath, '.worktrees');
 
   if (!existsSync(worktreesDir)) return () => {};
 
   const scanWorktree = (wtDir: string) => {
+    if (watchedDirs.has(wtDir)) return;
+    watchedDirs.add(wtDir);
     const issue = issueFromDirName(basename(wtDir));
 
     const handleFile = (filename: string | null) => {
@@ -153,12 +156,15 @@ export function watchProject(projectPath: string, callbacks: WatchCallbacks): ()
     // worktrees dir might not be readable
   }
 
-  // Watch for new worktrees being created
+  // Watch for new worktrees being created or removed
   try {
     const dirWatcher = watch(worktreesDir, (_, filename) => {
-      if (filename) {
-        const newDir = join(worktreesDir, filename);
-        if (existsSync(newDir)) scanWorktree(newDir);
+      if (!filename) return;
+      const dir = join(worktreesDir, filename);
+      if (existsSync(dir)) {
+        scanWorktree(dir);
+      } else {
+        watchedDirs.delete(dir);
       }
     });
     watchers.push(dirWatcher);
@@ -171,5 +177,6 @@ export function watchProject(projectPath: string, callbacks: WatchCallbacks): ()
       try { w.close(); } catch { /* already closed */ }
     }
     watchers.length = 0;
+    watchedDirs.clear();
   };
 }

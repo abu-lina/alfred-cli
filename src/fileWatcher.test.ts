@@ -193,6 +193,41 @@ describe('watchProject', () => {
     expect(notes[0]!.issue).toBe(7);
   });
 
+  it('does not create duplicate watchers for the same worktree directory', async () => {
+    const dir = tmpDir();
+    dirs.push(dir);
+    const worktreesDir = join(dir, '.worktrees');
+    mkdirSync(worktreesDir, { recursive: true });
+
+    const signals: LaneSignal[] = [];
+    const cleanup = watchProject(dir, {
+      onSignal: (s) => signals.push(s),
+      onNotes: () => {},
+      onReview: () => {},
+    });
+
+    // Create a worktree dir — the .worktrees watcher picks it up via scanWorktree
+    const wtDir = join(worktreesDir, '10-dup');
+    mkdirSync(wtDir, { recursive: true });
+    await new Promise(r => setTimeout(r, 500));
+
+    // Trigger another event on .worktrees/ (e.g. touch a file then remove it)
+    // This causes the dir watcher to fire again for '10-dup', but scanWorktree should skip it
+    writeFileSync(join(worktreesDir, '_tmp'), '');
+    await new Promise(r => setTimeout(r, 200));
+    rmSync(join(worktreesDir, '_tmp'), { force: true });
+    await new Promise(r => setTimeout(r, 200));
+
+    // Now write a signal — if watchers were duplicated, onSignal would fire multiple times
+    const signalData = JSON.stringify({ type: 'progress', issue: 10, message: 'working', timestamp: Date.now() });
+    writeFileSync(join(wtDir, '.lane-signal'), signalData);
+    await new Promise(r => setTimeout(r, 1500));
+
+    cleanup();
+    // With the fix, exactly 1 signal callback; without dedup, there would be 2+
+    expect(signals).toHaveLength(1);
+  });
+
   it('returns a cleanup function that stops watching', () => {
     const dir = tmpDir();
     dirs.push(dir);
