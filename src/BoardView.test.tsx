@@ -4,6 +4,9 @@ import { render } from 'ink-testing-library';
 import { BoardView } from './BoardView.js';
 import type { BoardColumns, BoardCard } from './board.js';
 
+const DELAY = 50;
+const wait = (ms = DELAY) => new Promise(r => setTimeout(r, ms));
+
 function card(overrides: Partial<BoardCard> & { issue: number; prefix: string }): BoardCard {
   return {
     title: `Issue ${overrides.issue}`,
@@ -80,6 +83,55 @@ describe('BoardView', () => {
     const frame = inst.lastFrame()!;
     // Should render without crashing — columns still visible
     expect(frame).toContain('Needs you');
+    inst.unmount();
+  });
+
+  it('shows focus indicator on the first card', () => {
+    const cols: BoardColumns = {
+      needsYou: [card({ issue: 1, prefix: 'AA', column: 'needsYou' })],
+      inProgress: [],
+      inReview: [],
+      todo: [],
+    };
+    const inst = render(<BoardView columns={cols} onSelect={() => {}} />);
+    const frame = inst.lastFrame()!;
+    expect(frame).toContain('▸');
+    inst.unmount();
+  });
+
+  it('calls onSelect when enter is pressed on focused card', async () => {
+    const selected: BoardCard[] = [];
+    const cols: BoardColumns = {
+      needsYou: [card({ issue: 1, prefix: 'AA', column: 'needsYou' })],
+      inProgress: [],
+      inReview: [],
+      todo: [],
+    };
+    const inst = render(<BoardView columns={cols} onSelect={(c) => selected.push(c)} />);
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    expect(selected).toHaveLength(1);
+    expect(selected[0]!.issue).toBe(1);
+    inst.unmount();
+  });
+
+  it('moves focus between cards with tab', async () => {
+    const cols: BoardColumns = {
+      needsYou: [card({ issue: 1, prefix: 'AA', column: 'needsYou' })],
+      inProgress: [card({ issue: 2, prefix: 'BB', column: 'inProgress' })],
+      inReview: [],
+      todo: [],
+    };
+    const selected: BoardCard[] = [];
+    const inst = render(<BoardView columns={cols} onSelect={(c) => selected.push(c)} />);
+    await wait();
+    inst.stdin.write('\t');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    expect(selected).toHaveLength(1);
+    expect(selected[0]!.issue).toBe(2);
     inst.unmount();
   });
 });
