@@ -15,6 +15,7 @@ interface GhPrRaw {
   labels: { name: string }[];
   reviewDecision: string;
   statusCheckRollup?: { state: string }[];
+  createdAt: string;
 }
 
 interface GhIssueRaw {
@@ -43,6 +44,7 @@ export function parseGhPrJson(json: string): PullRequest[] {
     labels: pr.labels.map(l => l.name),
     reviewDecision: pr.reviewDecision,
     checksStatus: checksState(pr.statusCheckRollup),
+    createdAt: new Date(pr.createdAt).getTime(),
   }));
 }
 
@@ -55,7 +57,7 @@ export function parseGhIssueJson(json: string): GitHubState['openIssues'] {
   }));
 }
 
-const PR_FIELDS = 'number,title,state,isDraft,url,headRefName,labels,reviewDecision,statusCheckRollup';
+const PR_FIELDS = 'number,title,state,isDraft,url,headRefName,labels,reviewDecision,statusCheckRollup,createdAt';
 const ISSUE_FIELDS = 'number,title,labels';
 
 export async function pollGitHub(project: ProjectConfig): Promise<GitHubState> {

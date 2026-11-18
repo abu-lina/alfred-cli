@@ -64,8 +64,9 @@ describe('parseReviewResult', () => {
       '## Findings',
       'stuff',
     ].join('\n');
-    const result = parseReviewResult(raw, 'code-reviewer');
+    const result = parseReviewResult(raw, 'code-reviewer', 5);
     expect(result).toEqual({
+      issue: 5,
       reviewer: 'code-reviewer',
       verdict: 'Pass with notes',
       critical: 0,
@@ -77,7 +78,7 @@ describe('parseReviewResult', () => {
 
   it('defaults counts to 0 when not found', () => {
     const raw = '# Review: sec\n\n**Verdict:** Pass\n';
-    const result = parseReviewResult(raw, 'sec');
+    const result = parseReviewResult(raw, 'sec', 3);
     expect(result!.critical).toBe(0);
     expect(result!.important).toBe(0);
   });

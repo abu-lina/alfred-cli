@@ -77,7 +77,7 @@ export function createRefreshManager(
         notify();
       },
       onReview: (review: ReviewResult) => {
-        const idx = fileState.reviews.findIndex(r => r.reviewer === review.reviewer);
+        const idx = fileState.reviews.findIndex(r => r.issue === review.issue && r.reviewer === review.reviewer);
         if (idx >= 0) fileState.reviews[idx] = review;
         else fileState.reviews.push(review);
         notify();
