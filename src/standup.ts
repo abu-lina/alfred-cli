@@ -79,7 +79,7 @@ export async function fetchCommits(projectPath: string, since: string): Promise<
   try {
     const { stdout } = await execFileAsync(
       'git',
-      ['log', '--since', since, '--format=%H|%s|%aI', '--all'],
+      ['log', '--since', since, '--format=%H%x00%s%x00%aI', '--all'],
       { encoding: 'utf-8', timeout: 15_000, cwd: projectPath },
     );
     return stdout
@@ -87,7 +87,7 @@ export async function fetchCommits(projectPath: string, since: string): Promise<
       .split('\n')
       .filter(Boolean)
       .map(line => {
-        const [sha, message, date] = line.split('|', 3);
+        const [sha, message, date] = line.split('\0', 3);
         return { sha: sha!, message: message!, date: date! };
       });
   } catch {
