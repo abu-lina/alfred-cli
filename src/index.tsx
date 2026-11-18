@@ -7,6 +7,8 @@ import { DEFAULT_CONFIG_PATH, loadConfig } from './config.js';
 import { createRefreshManager } from './refresh.js';
 import { classifyCards } from './board.js';
 import { BoardView } from './BoardView.js';
+import { HeaderBar } from './HeaderBar.js';
+import { useNavigation } from './useNavigation.js';
 import type { RefreshState } from './types.js';
 import { emptyRefreshState } from './types.js';
 
@@ -30,6 +32,7 @@ function App() {
   const [state, setState] = useState<RefreshState>(emptyRefreshState());
   const [config, setConfig] = useState<import('./config.js').Config | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const nav = useNavigation();
 
   useEffect(() => {
     let cfg;
@@ -58,8 +61,16 @@ function App() {
   const columns = classifyCards(config.projects, state);
   return (
     <Box flexDirection="column">
-      <Text bold color="cyan">Alfred — Board</Text>
-      <BoardView columns={columns} onSelect={() => {}} />
+      <HeaderBar view={nav.view} canGoBack={nav.canGoBack} onBack={nav.back} onNavigateTo={nav.navigateTo} />
+      {nav.view.type === 'board' && (
+        <BoardView columns={columns} onSelect={(card) => nav.push({ type: 'tasks', repo: card.repo, issue: card.issue })} />
+      )}
+      {nav.view.type === 'tasks' && (
+        <Box flexDirection="column" paddingLeft={1}>
+          <Text bold>Tasks — {nav.view.repo}#{nav.view.issue}</Text>
+          <Text dimColor>Detail view coming soon.</Text>
+        </Box>
+      )}
     </Box>
   );
 }

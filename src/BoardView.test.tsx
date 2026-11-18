@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 import { BoardView } from './BoardView.js';
+import { wait } from './testUtils.js';
 import type { BoardColumns, BoardCard } from './board.js';
 
 function card(overrides: Partial<BoardCard> & { issue: number; prefix: string }): BoardCard {
@@ -80,6 +81,87 @@ describe('BoardView', () => {
     const frame = inst.lastFrame()!;
     // Should render without crashing — columns still visible
     expect(frame).toContain('Needs you');
+    inst.unmount();
+  });
+
+  it('shows focus indicator on the first card', () => {
+    const cols: BoardColumns = {
+      needsYou: [card({ issue: 1, prefix: 'AA', column: 'needsYou' })],
+      inProgress: [],
+      inReview: [],
+      todo: [],
+    };
+    const inst = render(<BoardView columns={cols} onSelect={() => {}} />);
+    const frame = inst.lastFrame()!;
+    expect(frame).toContain('▸');
+    inst.unmount();
+  });
+
+  it('calls onSelect when enter is pressed on focused card', async () => {
+    const selected: BoardCard[] = [];
+    const cols: BoardColumns = {
+      needsYou: [card({ issue: 1, prefix: 'AA', column: 'needsYou' })],
+      inProgress: [],
+      inReview: [],
+      todo: [],
+    };
+    const inst = render(<BoardView columns={cols} onSelect={(c) => selected.push(c)} />);
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    expect(selected).toHaveLength(1);
+    expect(selected[0]!.issue).toBe(1);
+    inst.unmount();
+  });
+
+  it('moves focus between cards with tab', async () => {
+    const cols: BoardColumns = {
+      needsYou: [card({ issue: 1, prefix: 'AA', column: 'needsYou' })],
+      inProgress: [card({ issue: 2, prefix: 'BB', column: 'inProgress' })],
+      inReview: [],
+      todo: [],
+    };
+    const selected: BoardCard[] = [];
+    const inst = render(<BoardView columns={cols} onSelect={(c) => selected.push(c)} />);
+    await wait();
+    inst.stdin.write('\t');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    expect(selected).toHaveLength(1);
+    expect(selected[0]!.issue).toBe(2);
+    inst.unmount();
+  });
+
+  it('clamps focusIndex when cards disappear', async () => {
+    const cols: BoardColumns = {
+      needsYou: [card({ issue: 1, prefix: 'AA', column: 'needsYou' })],
+      inProgress: [card({ issue: 2, prefix: 'BB', column: 'inProgress' })],
+      inReview: [],
+      todo: [],
+    };
+    const selected: BoardCard[] = [];
+    const inst = render(<BoardView columns={cols} onSelect={(c) => selected.push(c)} />);
+    await wait();
+    // Move focus to card index 1
+    inst.stdin.write('\t');
+    await wait();
+
+    // Re-render with only 1 card — focusIndex was 1, should clamp to 0
+    const shrunk: BoardColumns = {
+      needsYou: [card({ issue: 1, prefix: 'AA', column: 'needsYou' })],
+      inProgress: [],
+      inReview: [],
+      todo: [],
+    };
+    inst.rerender(<BoardView columns={shrunk} onSelect={(c) => selected.push(c)} />);
+    await wait();
+
+    // Press enter — should select the clamped card (issue 1), not crash
+    inst.stdin.write('\r');
+    await wait();
+    expect(selected).toHaveLength(1);
+    expect(selected[0]!.issue).toBe(1);
     inst.unmount();
   });
 });
