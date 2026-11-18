@@ -1,29 +1,20 @@
 import React, { useState } from 'react';
 import { Text, Box, useInput } from 'ink';
 import { Clickable, Hoverable } from 'ink-use-mouse';
-import type { InboxItem } from './inbox.js';
+import type { InboxItem, InboxReason } from './inbox.js';
+import { formatAge } from './format.js';
 
 interface Props {
   items: InboxItem[];
   onSelect: (item: InboxItem) => void;
 }
 
-const REASON_COLORS: Record<string, string> = {
+const REASON_COLORS: Record<InboxReason, string> = {
   'Blocked': 'red',
   'Finished': 'green',
   'Failed CI': 'red',
   'Review ready': 'cyan',
 };
-
-function formatAge(since: number): string {
-  const ms = Date.now() - since;
-  const mins = Math.floor(ms / 60_000);
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
-}
 
 export function InboxView({ items, onSelect }: Props) {
   const [focusIndex, setFocusIndex] = useState(0);
@@ -65,6 +56,7 @@ export function InboxView({ items, onSelect }: Props) {
                   <Text color={REASON_COLORS[item.reason] ?? 'white'}> {item.reason}</Text>
                   <Text dimColor> {formatAge(item.since)}</Text>
                   <Text>  {item.title}</Text>
+                  {item.detail ? <Text dimColor>  ({item.detail})</Text> : null}
                 </Text>
               </Box>
             )}

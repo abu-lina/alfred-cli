@@ -141,6 +141,16 @@ describe('buildInbox', () => {
     expect(items.map(i => i.prefix).sort()).toEqual(['OT', 'TP']);
   });
 
+  it('produces both Blocked and Failed CI when signal and checks fail concurrently', () => {
+    const state = makeState({
+      prs: [makePr({ headRefName: 'feat/5-thing', checksStatus: 'fail' })],
+      signals: [{ type: 'block', issue: 5, message: 'stuck', timestamp: Date.now() }],
+    });
+    const items = buildInbox([PROJECT], state);
+    expect(items).toHaveLength(2);
+    expect(items.map(i => i.reason).sort()).toEqual(['Blocked', 'Failed CI']);
+  });
+
   it('can produce both a signal item and a review item for the same issue', () => {
     const state = makeState({
       prs: [makePr({ headRefName: 'feat/5-thing' })],

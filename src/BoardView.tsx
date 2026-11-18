@@ -2,20 +2,11 @@ import React, { useState } from 'react';
 import { Text, Box, useInput } from 'ink';
 import { Clickable, Hoverable } from 'ink-use-mouse';
 import type { BoardColumns, BoardCard } from './board.js';
+import { formatAge } from './format.js';
 
 interface Props {
   columns: BoardColumns;
   onSelect: (card: BoardCard) => void;
-}
-
-function formatAge(since: number): string {
-  const ms = Date.now() - since;
-  const mins = Math.floor(ms / 60_000);
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
 }
 
 const COLUMN_COLORS: Record<BoardCard['column'], string> = {

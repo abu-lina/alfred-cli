@@ -1,12 +1,14 @@
 import type { ProjectConfig } from './config.js';
 import type { RefreshState, LaneSignal } from './types.js';
 
+export type InboxReason = 'Blocked' | 'Finished' | 'Failed CI' | 'Review ready';
+
 export interface InboxItem {
   prefix: string;
   issue: number;
   title: string;
   repo: string;
-  reason: string;
+  reason: InboxReason;
   detail: string;
   since: number;
 }
@@ -70,7 +72,9 @@ export function buildInbox(projects: ProjectConfig[], state: RefreshState): Inbo
           detail: signal.message,
           since: signal.timestamp,
         });
-      } else if (pr.checksStatus === 'fail') {
+      }
+
+      if (pr.checksStatus === 'fail') {
         items.push({
           prefix: project.prefix,
           issue,
