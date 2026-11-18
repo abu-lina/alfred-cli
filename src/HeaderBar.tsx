@@ -8,9 +8,10 @@ interface Props {
   canGoBack: boolean;
   onBack: () => void;
   onNavigateTo: (route: Route) => void;
+  projectCount: number;
 }
 
-export function HeaderBar({ view, canGoBack, onBack, onNavigateTo }: Props) {
+export function HeaderBar({ view, canGoBack, onBack, onNavigateTo, projectCount }: Props) {
   useInput((_input, key) => {
     if (key.escape && canGoBack) onBack();
   });
@@ -47,6 +48,7 @@ export function HeaderBar({ view, canGoBack, onBack, onNavigateTo }: Props) {
           <Text bold color="cyan">{view.repo}#{view.issue}</Text>
         </>
       )}
+      <Text dimColor> ({projectCount} projects)</Text>
       {canGoBack && (
         <Clickable onClick={onBack}>
           <Hoverable>

@@ -3,9 +3,9 @@ import { renderHook, act } from './testUtils.js';
 import { useNavigation } from './useNavigation.js';
 
 describe('useNavigation', () => {
-  it('starts on inbox view', () => {
+  it('starts on board view', () => {
     const { result } = renderHook(() => useNavigation());
-    expect(result.current.view).toEqual({ type: 'inbox' });
+    expect(result.current.view).toEqual({ type: 'board' });
   });
 
   it('can navigate to tasks view for a lane', () => {
@@ -18,13 +18,13 @@ describe('useNavigation', () => {
     const { result } = renderHook(() => useNavigation());
     act(() => result.current.push({ type: 'tasks', repo: 'owner/repo', issue: 7 }));
     act(() => result.current.back());
-    expect(result.current.view).toEqual({ type: 'inbox' });
+    expect(result.current.view).toEqual({ type: 'board' });
   });
 
   it('back on root view is a no-op', () => {
     const { result } = renderHook(() => useNavigation());
     act(() => result.current.back());
-    expect(result.current.view).toEqual({ type: 'inbox' });
+    expect(result.current.view).toEqual({ type: 'board' });
   });
 
   it('canGoBack is false on root', () => {
