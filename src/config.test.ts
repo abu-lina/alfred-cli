@@ -1,9 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { loadConfig } from './config.js';
+import { loadConfig, saveConfig, validateProject, type Config, type ProjectConfig } from './config.js';
 
 function tmpFile(): string {
   const dir = join(tmpdir(), `alfred-test-${randomUUID()}`);
@@ -125,5 +125,66 @@ describe('loadConfig', () => {
       github: { pollIntervalSeconds: 60 },
     });
     expect(() => loadConfig(p)).toThrow(/projects\[0\]\.repo.*owner\/name/i);
+  });
+});
+
+describe('saveConfig', () => {
+  it('writes a valid config file that loadConfig can read back', () => {
+    const p = tmpFile();
+    dirs.push(join(p, '..'));
+    const cfg: Config = {
+      projects: [validProject as ProjectConfig],
+      github: { pollIntervalSeconds: 60 },
+    };
+    saveConfig(cfg, p);
+    const loaded = loadConfig(p);
+    expect(loaded).toEqual(cfg);
+  });
+
+  it('creates parent directories if they do not exist', () => {
+    const dir = join(tmpdir(), `alfred-test-${randomUUID()}`, 'nested', 'dir');
+    const p = join(dir, 'config.json');
+    dirs.push(join(tmpdir(), `alfred-test-${p.split('alfred-test-')[1]!.split('/')[0]!}`));
+    const cfg: Config = {
+      projects: [validProject as ProjectConfig],
+      github: { pollIntervalSeconds: 60 },
+    };
+    saveConfig(cfg, p);
+    expect(existsSync(p)).toBe(true);
+  });
+});
+
+describe('validateProject', () => {
+  it('returns no errors for a valid project with no existing prefixes', () => {
+    const errors = validateProject(validProject as ProjectConfig, []);
+    expect(errors).toEqual([]);
+  });
+
+  it('returns error when prefix is duplicate', () => {
+    const errors = validateProject(validProject as ProjectConfig, ['MP']);
+    expect(errors.some(e => /prefix.*already/i.test(e))).toBe(true);
+  });
+
+  it('returns error when prefix is not 2 uppercase letters', () => {
+    const errors = validateProject({ ...validProject, prefix: 'mp' } as ProjectConfig, []);
+    expect(errors.some(e => /prefix.*2 uppercase/i.test(e))).toBe(true);
+  });
+
+  it('returns error when path is not absolute', () => {
+    const errors = validateProject({ ...validProject, path: 'relative' } as ProjectConfig, []);
+    expect(errors.some(e => /absolute/i.test(e))).toBe(true);
+  });
+
+  it('returns error when repo format is invalid', () => {
+    const errors = validateProject({ ...validProject, repo: 'noslash' } as ProjectConfig, []);
+    expect(errors.some(e => /owner\/name/i.test(e))).toBe(true);
+  });
+
+  it('returns multiple errors at once', () => {
+    const errors = validateProject(
+      { ...validProject, prefix: 'mp', path: 'rel', repo: 'bad' } as ProjectConfig,
+      [],
+    );
+    expect(errors.length).toBeGreaterThanOrEqual(3);
   });
 });
