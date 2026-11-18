@@ -1,5 +1,5 @@
 import type { ProjectConfig } from './config.js';
-import type { RefreshState, PullRequest, LaneSignal } from './types.js';
+import type { RefreshState, LaneSignal } from './types.js';
 
 export interface BoardCard {
   prefix: string;
@@ -33,7 +33,6 @@ export function classifyCards(projects: ProjectConfig[], state: RefreshState): B
     if (!gh) continue;
 
     const signals = files?.signals ?? [];
-    const reviews = files?.reviews ?? [];
     const activeIssues = new Set<number>();
 
     const signalByIssue = new Map<number, LaneSignal>();
@@ -50,7 +49,6 @@ export function classifyCards(projects: ProjectConfig[], state: RefreshState): B
       activeIssues.add(issue);
 
       const signal = signalByIssue.get(issue);
-      const hasReviews = reviews.length > 0;
 
       const card: BoardCard = {
         prefix: project.prefix,
@@ -66,7 +64,7 @@ export function classifyCards(projects: ProjectConfig[], state: RefreshState): B
         card.since = signal.timestamp;
       } else if (pr.checksStatus === 'fail') {
         card.column = 'needsYou';
-      } else if (hasReviews) {
+      } else if (pr.reviewDecision !== '') {
         card.column = 'inReview';
       }
 

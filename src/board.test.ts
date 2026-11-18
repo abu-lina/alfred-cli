@@ -15,7 +15,6 @@ function makeState(overrides: {
   prs?: GitHubState['prs'];
   issues?: GitHubState['openIssues'];
   signals?: FileWatchState['signals'];
-  reviews?: FileWatchState['reviews'];
 } = {}): RefreshState {
   const gh: GitHubState = {
     prs: overrides.prs ?? [],
@@ -25,7 +24,7 @@ function makeState(overrides: {
   const files: FileWatchState = {
     signals: overrides.signals ?? [],
     notes: [],
-    reviews: overrides.reviews ?? [],
+    reviews: [],
   };
   return {
     github: new Map([['owner/test-project', gh]]),
@@ -71,13 +70,24 @@ describe('classifyCards', () => {
     expect(cols.needsYou.some(c => c.issue === 3)).toBe(true);
   });
 
-  it('puts a lane with review results into inReview', () => {
+  it('puts a lane with a review decision into inReview', () => {
     const state = makeState({
-      prs: [{ number: 1, title: 'feat: reviewed', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/4-reviewed', labels: [], reviewDecision: '', checksStatus: 'pass' }],
-      reviews: [{ reviewer: 'code-reviewer', verdict: 'Pass', critical: 0, important: 1, raw: '', updatedAt: Date.now() }],
+      prs: [{ number: 1, title: 'feat: reviewed', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/4-reviewed', labels: [], reviewDecision: 'APPROVED', checksStatus: 'pass' }],
     });
     const cols = classifyCards([PROJECT], state);
     expect(cols.inReview.some(c => c.issue === 4)).toBe(true);
+  });
+
+  it('does not misclassify a PR without reviews when another PR has reviews', () => {
+    const state = makeState({
+      prs: [
+        { number: 1, title: 'feat: reviewed', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/4-reviewed', labels: [], reviewDecision: 'APPROVED', checksStatus: 'pass' },
+        { number: 2, title: 'feat: wip', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/8-wip', labels: [], reviewDecision: '', checksStatus: 'pass' },
+      ],
+    });
+    const cols = classifyCards([PROJECT], state);
+    expect(cols.inReview.some(c => c.issue === 4)).toBe(true);
+    expect(cols.inProgress.some(c => c.issue === 8)).toBe(true);
   });
 
   it('puts an active lane with no signal and no reviews into inProgress', () => {

@@ -28,17 +28,19 @@ const cli = meow(`
 
 function App() {
   const [state, setState] = useState<RefreshState>(emptyRefreshState());
+  const [config, setConfig] = useState<import('./config.js').Config | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let config;
+    let cfg;
     try {
-      config = loadConfig();
+      cfg = loadConfig();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       return;
     }
-    const mgr = createRefreshManager(config, setState);
+    setConfig(cfg);
+    const mgr = createRefreshManager(cfg, setState);
     return () => mgr.stop();
   }, []);
 
@@ -51,12 +53,7 @@ function App() {
     );
   }
 
-  let config;
-  try {
-    config = loadConfig();
-  } catch {
-    return <Text>Loading...</Text>;
-  }
+  if (!config) return <Text>Loading...</Text>;
 
   const columns = classifyCards(config.projects, state);
   return (
