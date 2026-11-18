@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import {render, Text, Box} from 'ink';
 import React, { useState, useEffect } from 'react';
+import { existsSync } from 'node:fs';
 import meow from 'meow';
 import { Init } from './init.js';
 import { DEFAULT_CONFIG_PATH, loadConfig } from './config.js';
@@ -82,7 +83,12 @@ function App({ config }: { config: import('./config.js').Config }) {
 const command = cli.input[0];
 
 if (!command || command === 'start' || command === 'board') {
-  render(<App />);
+  if (!existsSync(DEFAULT_CONFIG_PATH)) {
+    console.error("Run 'alf init' first");
+    process.exit(1);
+  }
+  const config = loadConfig();
+  render(<App config={config} />);
 } else if (command === 'init') {
   render(<Init configPath={DEFAULT_CONFIG_PATH} />);
 } else if (command === 'status') {
