@@ -20,6 +20,45 @@ export function parseLaneNotes(raw: string, issue: number): LaneNotes {
   return { issue, raw, updatedAt: Date.now() };
 }
 
+export interface LaneNotesSections {
+  goal: string;
+  plan: { done: boolean; text: string }[];
+  decisions: string;
+  blockers: string;
+  changedFiles: string[];
+}
+
+export function parseLaneNotesSections(raw: string): LaneNotesSections {
+  // Split on ## headings, keeping section names
+  const sectionMap: Record<string, string> = {};
+  const parts = raw.split(/^## /m);
+  for (const part of parts.slice(1)) {
+    const nl = part.indexOf('\n');
+    const heading = part.slice(0, nl).trim().toLowerCase();
+    sectionMap[heading] = part.slice(nl + 1).trim();
+  }
+
+  const planRaw = sectionMap['plan'] ?? '';
+  const plan = planRaw
+    .split('\n')
+    .filter(l => /^- \[[ x]\]/.test(l))
+    .map(l => ({ done: l.startsWith('- [x]'), text: l.replace(/^- \[[ x]\] /, '') }));
+
+  const changedRaw = sectionMap['changed files'] ?? '';
+  const changedFiles = changedRaw
+    .split('\n')
+    .map(l => l.replace(/^- /, '').trim())
+    .filter(Boolean);
+
+  return {
+    goal: sectionMap['goal'] ?? '',
+    plan,
+    decisions: sectionMap['decisions'] ?? '',
+    blockers: sectionMap['blockers'] ?? '',
+    changedFiles,
+  };
+}
+
 export function parseReviewResult(raw: string, reviewer: string, issue: number): ReviewResult {
   const verdictMatch = raw.match(/\*\*Verdict:\*\*\s*(.+)/);
   const criticalMatch = raw.match(/\*\*Critical:\*\*\s*(\d+)/);

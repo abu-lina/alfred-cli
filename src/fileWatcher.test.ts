@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import {
   parseLaneSignal,
   parseLaneNotes,
+  parseLaneNotesSections,
   parseReviewResult,
   watchProject,
 } from './fileWatcher.js';
@@ -49,6 +50,68 @@ describe('parseLaneNotes', () => {
     const raw = '# Lane Notes — #5 Hybrid refresh\n\n## Goal\nDo stuff\n';
     const notes = parseLaneNotes(raw, 5);
     expect(notes).toEqual({ issue: 5, raw, updatedAt: expect.any(Number) });
+  });
+});
+
+describe('parseLaneNotesSections', () => {
+  const SAMPLE = [
+    '# Lane Notes — #8 Lane notes',
+    '',
+    '## Goal',
+    'Display lane notes in the Tasks view.',
+    '',
+    '## Plan',
+    '- [x] Read issue',
+    '- [ ] Write tests',
+    '- [ ] Implement',
+    '',
+    '## Decisions',
+    'Parse from headings.',
+    '',
+    '## Blockers',
+    'Need fs.watch from #5.',
+    '',
+    '## Changed Files',
+    '- src/fileWatcher.ts',
+    '- src/TasksView.tsx',
+  ].join('\n');
+
+  it('extracts goal', () => {
+    const s = parseLaneNotesSections(SAMPLE);
+    expect(s.goal).toBe('Display lane notes in the Tasks view.');
+  });
+
+  it('extracts plan items with done flags', () => {
+    const s = parseLaneNotesSections(SAMPLE);
+    expect(s.plan).toEqual([
+      { done: true, text: 'Read issue' },
+      { done: false, text: 'Write tests' },
+      { done: false, text: 'Implement' },
+    ]);
+  });
+
+  it('extracts decisions', () => {
+    const s = parseLaneNotesSections(SAMPLE);
+    expect(s.decisions).toBe('Parse from headings.');
+  });
+
+  it('extracts blockers', () => {
+    const s = parseLaneNotesSections(SAMPLE);
+    expect(s.blockers).toBe('Need fs.watch from #5.');
+  });
+
+  it('extracts changed files', () => {
+    const s = parseLaneNotesSections(SAMPLE);
+    expect(s.changedFiles).toEqual(['src/fileWatcher.ts', 'src/TasksView.tsx']);
+  });
+
+  it('returns empty strings/arrays for missing sections', () => {
+    const s = parseLaneNotesSections('# Lane Notes — #1 Empty\n\n## Goal\nOnly a goal.\n');
+    expect(s.goal).toBe('Only a goal.');
+    expect(s.plan).toEqual([]);
+    expect(s.decisions).toBe('');
+    expect(s.blockers).toBe('');
+    expect(s.changedFiles).toEqual([]);
   });
 });
 

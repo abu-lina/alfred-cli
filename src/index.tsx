@@ -8,6 +8,7 @@ import { createRefreshManager } from './refresh.js';
 import { classifyCards } from './board.js';
 import { BoardView } from './BoardView.js';
 import { HeaderBar } from './HeaderBar.js';
+import { TasksView } from './TasksView.js';
 import { useNavigation } from './useNavigation.js';
 import type { RefreshState } from './types.js';
 import { emptyRefreshState } from './types.js';
@@ -65,12 +66,17 @@ function App() {
       {nav.view.type === 'board' && (
         <BoardView columns={columns} onSelect={(card) => nav.push({ type: 'tasks', repo: card.repo, issue: card.issue })} />
       )}
-      {nav.view.type === 'tasks' && (
-        <Box flexDirection="column" paddingLeft={1}>
-          <Text bold>Tasks — {nav.view.repo}#{nav.view.issue}</Text>
-          <Text dimColor>Detail view coming soon.</Text>
-        </Box>
-      )}
+      {nav.view.type === 'tasks' && (() => {
+        const v = nav.view;
+        if (v.type !== 'tasks') return null;
+        return (
+          <TasksView
+            repo={v.repo}
+            issue={v.issue}
+            notes={state.files.get(v.repo)?.notes.find(n => n.issue === v.issue)}
+          />
+        );
+      })()}
     </Box>
   );
 }
