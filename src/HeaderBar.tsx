@@ -18,6 +18,14 @@ export function HeaderBar({ view, canGoBack, onBack, onNavigateTo }: Props) {
   return (
     <Box>
       <Text bold color="cyan">Alfred — </Text>
+      <Clickable onClick={() => onNavigateTo({ type: 'inbox' })}>
+        <Hoverable>
+          {(hovered) => (
+            <Text bold color={view.type === 'inbox' ? 'cyan' : hovered ? 'white' : 'gray'} underline={view.type === 'inbox' || hovered}>Inbox</Text>
+          )}
+        </Hoverable>
+      </Clickable>
+      <Text> </Text>
       <Clickable onClick={() => onNavigateTo({ type: 'board' })}>
         <Hoverable>
           {(hovered) => (

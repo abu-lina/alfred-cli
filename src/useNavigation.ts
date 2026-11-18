@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 
 export type Route =
+  | { type: 'inbox' }
   | { type: 'board' }
   | { type: 'tasks'; repo: string; issue: number };
 
@@ -13,7 +14,7 @@ export interface Navigation {
 }
 
 export function useNavigation(): Navigation {
-  const [stack, setStack] = useState<Route[]>([{ type: 'board' }]);
+  const [stack, setStack] = useState<Route[]>([{ type: 'inbox' }]);
 
   const push = useCallback((route: Route) => {
     setStack(prev => [...prev, route]);
