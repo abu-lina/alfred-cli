@@ -61,10 +61,11 @@ function App() {
 
   const columns = classifyCards(config.projects, state);
   const tasksRoute = nav.view.type === 'tasks' ? nav.view : null;
-  const tasksReviews = tasksRoute
-    ? (state.files.get(config.projects.find(p => p.repo === tasksRoute.repo)?.path ?? '')?.reviews ?? [])
-        .filter(r => r.issue === tasksRoute.issue)
-    : [];
+  const filesState = tasksRoute
+    ? state.files.get(config.projects.find(p => p.repo === tasksRoute.repo)?.path ?? '')
+    : undefined;
+  const tasksReviews = (filesState?.reviews ?? []).filter(r => tasksRoute && r.issue === tasksRoute.issue);
+  const tasksNotes = filesState?.notes.find(n => tasksRoute && n.issue === tasksRoute.issue);
 
   return (
     <Box flexDirection="column">
@@ -73,7 +74,7 @@ function App() {
         <BoardView columns={columns} onSelect={(card) => nav.push({ type: 'tasks', repo: card.repo, issue: card.issue })} />
       )}
       {tasksRoute && (
-        <TasksView repo={tasksRoute.repo} issue={tasksRoute.issue} reviews={tasksReviews} />
+        <TasksView repo={tasksRoute.repo} issue={tasksRoute.issue} reviews={tasksReviews} notes={tasksNotes} />
       )}
     </Box>
   );
