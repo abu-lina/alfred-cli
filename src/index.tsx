@@ -60,25 +60,22 @@ function App() {
   if (!config) return <Text>Loading...</Text>;
 
   const columns = classifyCards(config.projects, state);
+  const tasksRoute = nav.view.type === 'tasks' ? nav.view : null;
+  const filesState = tasksRoute
+    ? state.files.get(config.projects.find(p => p.repo === tasksRoute.repo)?.path ?? '')
+    : undefined;
+  const tasksReviews = (filesState?.reviews ?? []).filter(r => tasksRoute && r.issue === tasksRoute.issue);
+  const tasksNotes = filesState?.notes.find(n => tasksRoute && n.issue === tasksRoute.issue);
+
   return (
     <Box flexDirection="column">
       <HeaderBar view={nav.view} canGoBack={nav.canGoBack} onBack={nav.back} onNavigateTo={nav.navigateTo} />
       {nav.view.type === 'board' && (
         <BoardView columns={columns} onSelect={(card) => nav.push({ type: 'tasks', repo: card.repo, issue: card.issue })} />
       )}
-      {nav.view.type === 'tasks' && (() => {
-        const v = nav.view as { type: 'tasks'; repo: string; issue: number };
-        const filesState = state.files.get(
-          config.projects.find(p => p.repo === v.repo)?.path ?? '',
-        );
-        return (
-          <TasksView
-            repo={v.repo}
-            issue={v.issue}
-            notes={filesState?.notes.find(n => n.issue === v.issue)}
-          />
-        );
-      })()}
+      {tasksRoute && (
+        <TasksView repo={tasksRoute.repo} issue={tasksRoute.issue} reviews={tasksReviews} notes={tasksNotes} />
+      )}
     </Box>
   );
 }
