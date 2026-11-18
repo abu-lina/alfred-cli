@@ -89,7 +89,7 @@ describe('parseGhIssueJson', () => {
 });
 
 describe('pollGitHub', () => {
-  const execSync = vi.mocked(child_process.execSync);
+  const execFileSync = vi.mocked(child_process.execFileSync);
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -99,10 +99,10 @@ describe('pollGitHub', () => {
     vi.restoreAllMocks();
   });
 
-  it('calls gh pr list and gh issue list for the repo', () => {
-    execSync.mockImplementation((cmd: string) => {
-      if (cmd.includes('pr list')) return Buffer.from(prJson);
-      if (cmd.includes('issue list')) return Buffer.from(issueJson);
+  it('calls gh with args array (no shell injection)', () => {
+    execFileSync.mockImplementation((_file: string, args?: readonly string[]) => {
+      if (args && args.includes('pr')) return Buffer.from(prJson);
+      if (args && args.includes('issue')) return Buffer.from(issueJson);
       return Buffer.from('[]');
     });
 
@@ -111,18 +111,20 @@ describe('pollGitHub', () => {
     expect(state.openIssues).toHaveLength(1);
     expect(state.updatedAt).toBeGreaterThan(0);
 
-    expect(execSync).toHaveBeenCalledWith(
-      expect.stringContaining('gh pr list'),
+    expect(execFileSync).toHaveBeenCalledWith(
+      'gh',
+      expect.arrayContaining(['pr', 'list', '--repo', 'owner/repo']),
       expect.objectContaining({ encoding: 'utf-8' }),
     );
-    expect(execSync).toHaveBeenCalledWith(
-      expect.stringContaining('gh issue list'),
+    expect(execFileSync).toHaveBeenCalledWith(
+      'gh',
+      expect.arrayContaining(['issue', 'list', '--repo', 'owner/repo']),
       expect.objectContaining({ encoding: 'utf-8' }),
     );
   });
 
   it('throws when gh command fails', () => {
-    execSync.mockImplementation(() => { throw new Error('gh auth expired'); });
+    execFileSync.mockImplementation(() => { throw new Error('gh auth expired'); });
     expect(() => pollGitHub(project)).toThrow(/gh auth expired/);
   });
 });

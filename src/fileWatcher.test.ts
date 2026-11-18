@@ -37,6 +37,11 @@ describe('parseLaneSignal', () => {
   it('returns null when required fields are missing', () => {
     expect(parseLaneSignal(JSON.stringify({ type: 'block' }))).toBeNull();
   });
+
+  it('returns null for invalid signal type', () => {
+    const raw = JSON.stringify({ type: 'unknown-thing', issue: 5, message: 'hi', timestamp: 1000 });
+    expect(parseLaneSignal(raw)).toBeNull();
+  });
 });
 
 describe('parseLaneNotes', () => {

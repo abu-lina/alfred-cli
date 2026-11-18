@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import type { ProjectConfig } from './config.js';
 import type { PullRequest, GitHubState } from './types.js';
 
@@ -56,12 +56,14 @@ const PR_FIELDS = 'number,title,state,isDraft,url,headRefName,labels,reviewDecis
 const ISSUE_FIELDS = 'number,title,labels';
 
 export function pollGitHub(project: ProjectConfig): GitHubState {
-  const prOut = execSync(
-    `gh pr list --repo ${project.repo} --state open --json ${PR_FIELDS} --limit 100`,
+  const prOut = execFileSync(
+    'gh',
+    ['pr', 'list', '--repo', project.repo, '--state', 'open', '--json', PR_FIELDS, '--limit', '100'],
     { encoding: 'utf-8', timeout: 30_000 },
   );
-  const issueOut = execSync(
-    `gh issue list --repo ${project.repo} --state open --json ${ISSUE_FIELDS} --limit 200`,
+  const issueOut = execFileSync(
+    'gh',
+    ['issue', 'list', '--repo', project.repo, '--state', 'open', '--json', ISSUE_FIELDS, '--limit', '200'],
     { encoding: 'utf-8', timeout: 30_000 },
   );
 

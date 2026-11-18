@@ -138,6 +138,44 @@ describe('createRefreshManager', () => {
     mgr.stop();
   });
 
+  it('marks github ok when at least one project succeeds (multi-project)', () => {
+    const secondProject: ProjectConfig = {
+      name: 'other', prefix: 'OT', path: '/tmp/other', repo: 'owner/other', rexSession: 'other-foreman',
+    };
+    const multiConfig: Config = { projects: [project, secondProject], github: { pollIntervalSeconds: 60 } };
+
+    let callCount = 0;
+    vi.mocked(ghPoller.pollGitHub).mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) throw new Error('fail');
+      return { prs: [], openIssues: [], updatedAt: 1000 };
+    });
+
+    const onChange = vi.fn();
+    const mgr = createRefreshManager(multiConfig, onChange);
+
+    expect(mgr.getState().sources.github).toBe('ok');
+    mgr.stop();
+  });
+
+  it('caps rexEvents array to prevent unbounded growth', () => {
+    let eventCb: ((event: import('./types.js').RexEvent) => void) | undefined;
+    vi.mocked(rexEvents.createRexStream).mockImplementation((cbs) => {
+      eventCb = cbs.onEvent;
+      return () => {};
+    });
+
+    const onChange = vi.fn();
+    const mgr = createRefreshManager(config, onChange);
+
+    for (let i = 0; i < 600; i++) {
+      eventCb!({ type: 'test', timestamp: i });
+    }
+
+    expect(mgr.getState().rexEvents.length).toBeLessThanOrEqual(500);
+    mgr.stop();
+  });
+
   it('stop cleans up all watchers and timers', () => {
     const fileCleanup = vi.fn();
     const rexCleanup = vi.fn();

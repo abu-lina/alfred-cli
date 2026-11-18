@@ -2,10 +2,12 @@ import { watch, readFileSync, readdirSync, existsSync, type FSWatcher } from 'no
 import { join, basename } from 'node:path';
 import type { LaneSignal, LaneNotes, ReviewResult } from './types.js';
 
+const SIGNAL_TYPES = new Set<string>(['block', 'handoff', 'progress']);
+
 export function parseLaneSignal(raw: string): LaneSignal | null {
   try {
     const obj = JSON.parse(raw);
-    if (typeof obj.type !== 'string' || typeof obj.issue !== 'number' || typeof obj.message !== 'string') {
+    if (!SIGNAL_TYPES.has(obj.type) || typeof obj.issue !== 'number' || typeof obj.message !== 'string') {
       return null;
     }
     return { type: obj.type, issue: obj.issue, message: obj.message, timestamp: obj.timestamp ?? Date.now() };

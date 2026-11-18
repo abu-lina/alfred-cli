@@ -5,6 +5,13 @@ import { pollGitHub } from './ghPoller.js';
 import { watchProject } from './fileWatcher.js';
 import { createRexStream } from './rexEvents.js';
 
+const MAX_EVENTS = 500;
+const MAX_SIGNALS = 200;
+
+function capArray<T>(arr: T[], max: number): void {
+  if (arr.length > max) arr.splice(0, arr.length - max);
+}
+
 export interface RefreshManager {
   getState(): RefreshState;
   stop(): void;
@@ -21,50 +28,52 @@ export function createRefreshManager(
   const notify = () => onChange(state);
 
   const ensureFileState = (path: string): FileWatchState => {
-    let fs = state.files.get(path);
-    if (!fs) {
-      fs = { signals: [], notes: [], reviews: [] };
-      state.files.set(path, fs);
+    let entry = state.files.get(path);
+    if (!entry) {
+      entry = { signals: [], notes: [], reviews: [] };
+      state.files.set(path, entry);
     }
-    return fs;
+    return entry;
   };
 
   const doPoll = () => {
+    let anyOk = false;
+    let anyError = false;
     for (const project of config.projects) {
       try {
         const ghState = pollGitHub(project);
         state.github.set(project.repo, ghState);
-        state.sources.github = 'ok';
+        anyOk = true;
       } catch {
-        state.sources.github = 'error';
+        anyError = true;
       }
     }
+    state.sources.github = anyOk ? 'ok' : anyError ? 'error' : 'unavailable';
     notify();
   };
 
-  // GitHub polling
   doPoll();
   const intervalMs = (config.github?.pollIntervalSeconds ?? 60) * 1000;
   pollTimer = setInterval(doPoll, intervalMs);
 
-  // File watchers
   for (const project of config.projects) {
-    const fs = ensureFileState(project.path);
+    const fileState = ensureFileState(project.path);
     const cleanup = watchProject(project.path, {
       onSignal: (signal: LaneSignal) => {
-        fs.signals.push(signal);
+        fileState.signals.push(signal);
+        capArray(fileState.signals, MAX_SIGNALS);
         notify();
       },
       onNotes: (notes: LaneNotes) => {
-        const idx = fs.notes.findIndex(n => n.issue === notes.issue);
-        if (idx >= 0) fs.notes[idx] = notes;
-        else fs.notes.push(notes);
+        const idx = fileState.notes.findIndex(n => n.issue === notes.issue);
+        if (idx >= 0) fileState.notes[idx] = notes;
+        else fileState.notes.push(notes);
         notify();
       },
       onReview: (review: ReviewResult) => {
-        const idx = fs.reviews.findIndex(r => r.reviewer === review.reviewer);
-        if (idx >= 0) fs.reviews[idx] = review;
-        else fs.reviews.push(review);
+        const idx = fileState.reviews.findIndex(r => r.reviewer === review.reviewer);
+        if (idx >= 0) fileState.reviews[idx] = review;
+        else fileState.reviews.push(review);
         notify();
       },
     });
@@ -72,10 +81,10 @@ export function createRefreshManager(
     state.sources.fileWatch = 'ok';
   }
 
-  // Rex event stream
   const rexCleanup = createRexStream({
     onEvent: (event: RexEvent) => {
       state.rexEvents.push(event);
+      capArray(state.rexEvents, MAX_EVENTS);
       notify();
     },
     onError: () => {
