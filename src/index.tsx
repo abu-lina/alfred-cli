@@ -8,6 +8,7 @@ import { createRefreshManager } from './refresh.js';
 import { classifyCards } from './board.js';
 import { BoardView } from './BoardView.js';
 import { HeaderBar } from './HeaderBar.js';
+import { TasksView } from './TasksView.js';
 import { useNavigation } from './useNavigation.js';
 import type { RefreshState } from './types.js';
 import { emptyRefreshState } from './types.js';
@@ -59,17 +60,20 @@ function App() {
   if (!config) return <Text>Loading...</Text>;
 
   const columns = classifyCards(config.projects, state);
+  const tasksRoute = nav.view.type === 'tasks' ? nav.view : null;
+  const tasksReviews = tasksRoute
+    ? (state.files.get(config.projects.find(p => p.repo === tasksRoute.repo)?.path ?? '')?.reviews ?? [])
+        .filter(r => r.issue === tasksRoute.issue)
+    : [];
+
   return (
     <Box flexDirection="column">
       <HeaderBar view={nav.view} canGoBack={nav.canGoBack} onBack={nav.back} onNavigateTo={nav.navigateTo} />
       {nav.view.type === 'board' && (
         <BoardView columns={columns} onSelect={(card) => nav.push({ type: 'tasks', repo: card.repo, issue: card.issue })} />
       )}
-      {nav.view.type === 'tasks' && (
-        <Box flexDirection="column" paddingLeft={1}>
-          <Text bold>Tasks — {nav.view.repo}#{nav.view.issue}</Text>
-          <Text dimColor>Detail view coming soon.</Text>
-        </Box>
+      {tasksRoute && (
+        <TasksView repo={tasksRoute.repo} issue={tasksRoute.issue} reviews={tasksReviews} />
       )}
     </Box>
   );
