@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.lane-notes.md
+.review-results/
+.lane-signal
+.lane-signal-sent
+.env*
+*.tsbuildinfo
+.worktrees/

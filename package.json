@@ -1,0 +1,31 @@
+{
+  "name": "alfred-cli",
+  "version": "0.1.0",
+  "description": "Cross-project agent dashboard TUI",
+  "type": "module",
+  "bin": {
+    "alf": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.tsx",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ink": "^5.2.0",
+    "react": "^18.3.1",
+    "meow": "^13.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "vitest": "^2.1.0",
+    "eslint": "^9.15.0",
+    "ink-testing-library": "^4.0.0"
+  }
+}
