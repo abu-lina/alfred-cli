@@ -1,59 +1,25 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 import { StandupView } from './StandupView.js';
-import { wait } from './testUtils.js';
-import type { ProjectConfig } from './config.js';
-import type { RefreshState } from './types.js';
 import type { StandupData } from './standup.js';
 
-const PROJECT: ProjectConfig = {
-  name: 'test-project',
-  prefix: 'TP',
-  path: '/tmp/test-project',
-  repo: 'owner/test-project',
-  rexSession: 'tp-foreman',
-};
-
-const EMPTY_STATE: RefreshState = {
-  github: new Map(),
-  files: new Map(),
-  rexEvents: [],
-  sources: { github: 'ok', fileWatch: 'ok', rex: 'ok' },
-};
-
-const mockBuildStandup = vi.fn<() => Promise<StandupData>>();
-
-vi.mock('./standup.js', () => ({
-  buildStandup: (...args: unknown[]) => mockBuildStandup(...(args as [])),
-}));
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
 describe('StandupView', () => {
-  it('shows loading state initially', () => {
-    mockBuildStandup.mockReturnValue(new Promise(() => {})); // never resolves
-    const inst = render(<StandupView projects={[PROJECT]} state={EMPTY_STATE} />);
+  it('shows loading state when data is null', () => {
+    const inst = render(<StandupView data={null} />);
     expect(inst.lastFrame()).toContain('Loading standup data');
     inst.unmount();
   });
 
-  it('shows empty state when no activity', async () => {
-    mockBuildStandup.mockResolvedValue({
-      blockers: [],
-      sections: [],
-      asOf: Date.now(),
-    });
-    const inst = render(<StandupView projects={[PROJECT]} state={EMPTY_STATE} />);
-    await wait(100);
+  it('shows empty state when no activity', () => {
+    const data: StandupData = { blockers: [], sections: [], asOf: Date.now() };
+    const inst = render(<StandupView data={data} />);
     expect(inst.lastFrame()).toContain('No activity since yesterday');
     inst.unmount();
   });
 
-  it('renders blockers section', async () => {
-    mockBuildStandup.mockResolvedValue({
+  it('renders blockers section', () => {
+    const data: StandupData = {
       blockers: [{
         prefix: 'TP',
         issue: 5,
@@ -65,17 +31,16 @@ describe('StandupView', () => {
       }],
       sections: [],
       asOf: Date.now(),
-    });
-    const inst = render(<StandupView projects={[PROJECT]} state={EMPTY_STATE} />);
-    await wait(100);
+    };
+    const inst = render(<StandupView data={data} />);
     const frame = inst.lastFrame()!;
     expect(frame).toContain('Blockers');
     expect(frame).toContain('stuck on API');
     inst.unmount();
   });
 
-  it('renders project sections with merged PRs', async () => {
-    mockBuildStandup.mockResolvedValue({
+  it('renders project sections with merged PRs', () => {
+    const data: StandupData = {
       blockers: [],
       sections: [{
         prefix: 'TP',
@@ -86,9 +51,8 @@ describe('StandupView', () => {
         commits: [],
       }],
       asOf: Date.now(),
-    });
-    const inst = render(<StandupView projects={[PROJECT]} state={EMPTY_STATE} />);
-    await wait(100);
+    };
+    const inst = render(<StandupView data={data} />);
     const frame = inst.lastFrame()!;
     expect(frame).toContain('TP');
     expect(frame).toContain('test-project');
@@ -98,8 +62,8 @@ describe('StandupView', () => {
     inst.unmount();
   });
 
-  it('renders closed issues and commits', async () => {
-    mockBuildStandup.mockResolvedValue({
+  it('renders closed issues and commits', () => {
+    const data: StandupData = {
       blockers: [],
       sections: [{
         prefix: 'TP',
@@ -110,9 +74,8 @@ describe('StandupView', () => {
         commits: [{ sha: 'abc1234def', message: 'feat: add login', date: '2026-11-19T10:00:00+00:00' }],
       }],
       asOf: Date.now(),
-    });
-    const inst = render(<StandupView projects={[PROJECT]} state={EMPTY_STATE} />);
-    await wait(100);
+    };
+    const inst = render(<StandupView data={data} />);
     const frame = inst.lastFrame()!;
     expect(frame).toContain('Closed issues');
     expect(frame).toContain('#3');

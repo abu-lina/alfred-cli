@@ -7,6 +7,7 @@ import { DEFAULT_CONFIG_PATH, loadConfig } from './config.js';
 import { createRefreshManager } from './refresh.js';
 import { classifyCards } from './board.js';
 import { buildInbox } from './inbox.js';
+import { buildStandup, type StandupData } from './standup.js';
 import { BoardView } from './BoardView.js';
 import { InboxView } from './InboxView.js';
 import { HeaderBar } from './HeaderBar.js';
@@ -36,6 +37,7 @@ function App() {
   const [state, setState] = useState<RefreshState>(emptyRefreshState());
   const [config, setConfig] = useState<import('./config.js').Config | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [standupData, setStandupData] = useState<StandupData | null>(null);
   const nav = useNavigation();
 
   useEffect(() => {
@@ -50,6 +52,14 @@ function App() {
     const mgr = createRefreshManager(cfg, setState);
     return () => mgr.stop();
   }, []);
+
+  useEffect(() => {
+    if (nav.view.type !== 'standup' || !config) return;
+    setStandupData(null);
+    buildStandup(config.projects, state).then(setStandupData).catch(() => {
+      setStandupData({ blockers: [], sections: [], asOf: Date.now() });
+    });
+  }, [nav.view.type === 'standup']);
 
   if (error) {
     return (
@@ -81,7 +91,7 @@ function App() {
         <BoardView columns={columns} onSelect={(card) => nav.push({ type: 'tasks', repo: card.repo, issue: card.issue })} />
       )}
       {nav.view.type === 'standup' && (
-        <StandupView projects={config.projects} state={state} />
+        <StandupView data={standupData} />
       )}
       {tasksRoute && (
         <TasksView repo={tasksRoute.repo} issue={tasksRoute.issue} reviews={tasksReviews} notes={tasksNotes} />

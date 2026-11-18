@@ -1,32 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Text, Box } from 'ink';
-import type { ProjectConfig } from './config.js';
-import type { RefreshState } from './types.js';
 import type { StandupData } from './standup.js';
-import { buildStandup } from './standup.js';
 
 interface Props {
-  projects: ProjectConfig[];
-  state: RefreshState;
+  data: StandupData | null;
 }
 
-export function StandupView({ projects, state }: Props) {
-  const [data, setData] = useState<StandupData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    buildStandup(projects, state).then(d => {
-      setData(d);
-      setLoading(false);
-    }).catch(() => {
-      setData({ blockers: [], sections: [], asOf: Date.now() });
-      setLoading(false);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (loading || !data) {
+export function StandupView({ data }: Props) {
+  if (!data) {
     return (
       <Box paddingLeft={1}>
         <Text dimColor>Loading standup data...</Text>
