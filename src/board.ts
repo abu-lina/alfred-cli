@@ -33,7 +33,11 @@ export function classifyCards(projects: ProjectConfig[], state: RefreshState): B
     if (!gh) continue;
 
     const signals = files?.signals ?? [];
+    const reviews = files?.reviews ?? [];
     const activeIssues = new Set<number>();
+
+    const reviewedIssues = new Set<number>();
+    for (const r of reviews) reviewedIssues.add(r.issue);
 
     const signalByIssue = new Map<number, LaneSignal>();
     for (const s of signals) {
@@ -64,7 +68,7 @@ export function classifyCards(projects: ProjectConfig[], state: RefreshState): B
         card.since = signal.timestamp;
       } else if (pr.checksStatus === 'fail') {
         card.column = 'needsYou';
-      } else if (pr.reviewDecision !== '') {
+      } else if (reviewedIssues.has(issue) || pr.reviewDecision !== '') {
         card.column = 'inReview';
       }
 

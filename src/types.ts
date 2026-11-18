@@ -30,6 +30,7 @@ export interface LaneNotes {
 }
 
 export interface ReviewResult {
+  issue: number;
   reviewer: string;
   verdict: string;
   critical: number;

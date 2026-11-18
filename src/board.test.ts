@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { classifyCards, type BoardCard } from './board.js';
-import type { RefreshState, GitHubState, FileWatchState } from './types.js';
+import type { RefreshState, GitHubState, FileWatchState, ReviewResult } from './types.js';
 import type { ProjectConfig } from './config.js';
 
 const PROJECT: ProjectConfig = {
@@ -15,6 +15,7 @@ function makeState(overrides: {
   prs?: GitHubState['prs'];
   issues?: GitHubState['openIssues'];
   signals?: FileWatchState['signals'];
+  reviews?: ReviewResult[];
 } = {}): RefreshState {
   const gh: GitHubState = {
     prs: overrides.prs ?? [],
@@ -24,7 +25,7 @@ function makeState(overrides: {
   const files: FileWatchState = {
     signals: overrides.signals ?? [],
     notes: [],
-    reviews: [],
+    reviews: overrides.reviews ?? [],
   };
   return {
     github: new Map([['owner/test-project', gh]]),
@@ -73,6 +74,15 @@ describe('classifyCards', () => {
   it('puts a lane with a review decision into inReview', () => {
     const state = makeState({
       prs: [{ number: 1, title: 'feat: reviewed', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/4-reviewed', labels: [], reviewDecision: 'APPROVED', checksStatus: 'pass' }],
+    });
+    const cols = classifyCards([PROJECT], state);
+    expect(cols.inReview.some(c => c.issue === 4)).toBe(true);
+  });
+
+  it('puts a lane with local review results but no reviewDecision into inReview', () => {
+    const state = makeState({
+      prs: [{ number: 1, title: 'feat: reviewed locally', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/4-reviewed', labels: [], reviewDecision: '', checksStatus: 'pass' }],
+      reviews: [{ issue: 4, reviewer: 'code-review', verdict: 'PASS', critical: 0, important: 1, raw: '', updatedAt: Date.now() }],
     });
     const cols = classifyCards([PROJECT], state);
     expect(cols.inReview.some(c => c.issue === 4)).toBe(true);

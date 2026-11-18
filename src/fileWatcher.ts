@@ -20,12 +20,13 @@ export function parseLaneNotes(raw: string, issue: number): LaneNotes {
   return { issue, raw, updatedAt: Date.now() };
 }
 
-export function parseReviewResult(raw: string, reviewer: string): ReviewResult {
+export function parseReviewResult(raw: string, reviewer: string, issue: number): ReviewResult {
   const verdictMatch = raw.match(/\*\*Verdict:\*\*\s*(.+)/);
   const criticalMatch = raw.match(/\*\*Critical:\*\*\s*(\d+)/);
   const importantMatch = raw.match(/\*\*Important:\*\*\s*(\d+)/);
 
   return {
+    issue,
     reviewer,
     verdict: verdictMatch?.[1]?.trim() ?? 'unknown',
     critical: criticalMatch ? parseInt(criticalMatch[1]!, 10) : 0,
@@ -77,7 +78,7 @@ export function watchProject(projectPath: string, callbacks: WatchCallbacks): ()
         const reviewDir = join(wtDir, '.review-results');
         const raw = readFileSync(join(reviewDir, filename), 'utf-8');
         const reviewer = filename.replace(/\.md$/, '');
-        callbacks.onReview(parseReviewResult(raw, reviewer));
+        callbacks.onReview(parseReviewResult(raw, reviewer, issue));
       } catch {
         // file may have been deleted
       }
