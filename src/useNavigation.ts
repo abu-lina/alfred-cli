@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 export type Route =
   | { type: 'inbox' }
   | { type: 'board' }
+  | { type: 'standup' }
   | { type: 'tasks'; repo: string; issue: number };
 
 export interface Navigation {

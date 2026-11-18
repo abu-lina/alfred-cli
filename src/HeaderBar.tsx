@@ -33,6 +33,14 @@ export function HeaderBar({ view, canGoBack, onBack, onNavigateTo }: Props) {
           )}
         </Hoverable>
       </Clickable>
+      <Text> </Text>
+      <Clickable onClick={() => onNavigateTo({ type: 'standup' })}>
+        <Hoverable>
+          {(hovered) => (
+            <Text bold color={view.type === 'standup' ? 'cyan' : hovered ? 'white' : 'gray'} underline={view.type === 'standup' || hovered}>Standup</Text>
+          )}
+        </Hoverable>
+      </Clickable>
       {view.type === 'tasks' && (
         <>
           <Text bold color="cyan"> — </Text>

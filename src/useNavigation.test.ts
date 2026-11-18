@@ -44,4 +44,11 @@ describe('useNavigation', () => {
     expect(result.current.view).toEqual({ type: 'board' });
     expect(result.current.canGoBack).toBe(false);
   });
+
+  it('navigateTo switches to standup view', () => {
+    const { result } = renderHook(() => useNavigation());
+    act(() => result.current.navigateTo({ type: 'standup' }));
+    expect(result.current.view).toEqual({ type: 'standup' });
+    expect(result.current.canGoBack).toBe(false);
+  });
 });
