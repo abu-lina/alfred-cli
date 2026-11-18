@@ -10,6 +10,9 @@
 # so all logic runs under bash. scripts/lane sources it under bash for the
 # real functions below.
 
+# Clear GH_HOST so gh resolves the remote from git config, not the environment.
+unset GH_HOST 2>/dev/null || true
+
 if [ -n "${ZSH_VERSION:-}" ]; then
   # The zsh-only expansion lives in eval so bash and shellcheck never parse it.
   _lane_wrapper_bin="$(eval 'print -r -- ${${(%):-%x}:A:h}')/lane"
@@ -107,8 +110,8 @@ _lane_setup_hooks() {
 
 _lane_type() {
   case "$(gh issue view "$1" --json labels --jq '[.labels[].name|select(startswith("type:"))][0]')" in
-    type:feature) echo feat ;;
-    type:bugfix | type:hotfix | type:security) echo fix ;;
+    type:feat | type:feature) echo feat ;;
+    type:bugfix | type:hotfix | type:security | type:fix) echo fix ;;
     type:refactor) echo refactor ;;
     *) echo chore ;;
   esac
