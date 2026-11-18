@@ -60,22 +60,21 @@ function App() {
   if (!config) return <Text>Loading...</Text>;
 
   const columns = classifyCards(config.projects, state);
+  const tasksRoute = nav.view.type === 'tasks' ? nav.view : null;
+  const tasksReviews = tasksRoute
+    ? (state.files.get(config.projects.find(p => p.repo === tasksRoute.repo)?.path ?? '')?.reviews ?? [])
+        .filter(r => r.issue === tasksRoute.issue)
+    : [];
+
   return (
     <Box flexDirection="column">
       <HeaderBar view={nav.view} canGoBack={nav.canGoBack} onBack={nav.back} onNavigateTo={nav.navigateTo} />
       {nav.view.type === 'board' && (
         <BoardView columns={columns} onSelect={(card) => nav.push({ type: 'tasks', repo: card.repo, issue: card.issue })} />
       )}
-      {nav.view.type === 'tasks' && (() => {
-        const tasksRoute = nav.view;
-        const filesState = state.files.get(
-          config.projects.find(p => p.repo === tasksRoute.repo)?.path ?? '',
-        );
-        const reviews = (filesState?.reviews ?? []).filter(r => r.issue === tasksRoute.issue);
-        return (
-          <TasksView repo={tasksRoute.repo} issue={tasksRoute.issue} reviews={reviews} />
-        );
-      })()}
+      {tasksRoute && (
+        <TasksView repo={tasksRoute.repo} issue={tasksRoute.issue} reviews={tasksReviews} />
+      )}
     </Box>
   );
 }

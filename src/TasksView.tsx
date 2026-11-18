@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Text, Box, useInput } from 'ink';
+import { Clickable, Hoverable } from 'ink-use-mouse';
 import type { ReviewResult } from './types.js';
 
 interface Props {
@@ -19,6 +20,9 @@ export function TasksView({ repo, issue, reviews }: Props) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [focusIndex, setFocusIndex] = useState(0);
 
+  const clamped = Math.min(focusIndex, Math.max(reviews.length - 1, 0));
+  if (clamped !== focusIndex) setFocusIndex(clamped);
+
   useInput((_input, key) => {
     if (reviews.length === 0) return;
     if (key.downArrow || key.tab) {
@@ -26,7 +30,7 @@ export function TasksView({ repo, issue, reviews }: Props) {
     } else if (key.upArrow) {
       setFocusIndex(i => (i - 1 + reviews.length) % reviews.length);
     } else if (key.return) {
-      setExpandedIndex(prev => (prev === focusIndex ? null : focusIndex));
+      setExpandedIndex(prev => (prev === clamped ? null : clamped));
     }
   });
 
@@ -40,12 +44,18 @@ export function TasksView({ repo, issue, reviews }: Props) {
           <Text bold underline>Reviews</Text>
           {reviews.map((r, i) => (
             <Box key={r.reviewer} flexDirection="column">
-              <Text>
-                <Text>{focusIndex === i ? '▸' : ' '}</Text>
-                <Text bold> {r.reviewer}</Text>
-                <Text color={verdictColor(r.verdict)}> {r.verdict}</Text>
-                <Text dimColor>  C:{r.critical} I:{r.important}</Text>
-              </Text>
+              <Clickable onClick={() => setExpandedIndex(prev => (prev === i ? null : i))}>
+                <Hoverable>
+                  {(hovered) => (
+                    <Text>
+                      <Text>{clamped === i ? '▸' : hovered ? '›' : ' '}</Text>
+                      <Text bold> {r.reviewer}</Text>
+                      <Text color={verdictColor(r.verdict)}> {r.verdict}</Text>
+                      <Text dimColor>  C:{r.critical} I:{r.important}</Text>
+                    </Text>
+                  )}
+                </Hoverable>
+              </Clickable>
               {expandedIndex === i && (
                 <Box paddingLeft={2} flexDirection="column">
                   <Text>{r.raw}</Text>

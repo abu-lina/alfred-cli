@@ -99,6 +99,32 @@ describe('TasksView', () => {
     inst.unmount();
   });
 
+  it('clamps focusIndex when reviews array shrinks', async () => {
+    const twoReviews = [
+      review({ reviewer: 'code-reviewer' }),
+      review({ reviewer: 'security-auditor' }),
+    ];
+    const selected: string[] = [];
+    const inst = render(
+      <TasksView repo="owner/repo" issue={7} reviews={twoReviews} />,
+    );
+    await wait();
+    inst.stdin.write('\t'); // move focus to index 1
+    await wait();
+
+    // shrink to one review — focusIndex was 1, should clamp to 0
+    inst.rerender(
+      <TasksView repo="owner/repo" issue={7} reviews={[review({ reviewer: 'code-reviewer' })]} />,
+    );
+    await wait();
+
+    // enter should select the clamped row without crashing
+    inst.stdin.write('\r');
+    await wait();
+    expect(inst.lastFrame()).toContain('code-reviewer');
+    inst.unmount();
+  });
+
   it('shows "Fail" verdict in context (renders without crash)', () => {
     const inst = render(
       <TasksView
