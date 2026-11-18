@@ -2,10 +2,8 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
 import { BoardView } from './BoardView.js';
+import { wait } from './testUtils.js';
 import type { BoardColumns, BoardCard } from './board.js';
-
-const DELAY = 50;
-const wait = (ms = DELAY) => new Promise(r => setTimeout(r, ms));
 
 function card(overrides: Partial<BoardCard> & { issue: number; prefix: string }): BoardCard {
   return {

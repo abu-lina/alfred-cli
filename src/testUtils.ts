@@ -14,4 +14,7 @@ export function renderHook<T>(hook: () => T) {
   return { result: resultRef, unmount: inst.unmount, rerender: inst.rerender };
 }
 
+export const DELAY = 50;
+export const wait = (ms = DELAY) => new Promise(r => setTimeout(r, ms));
+
 export { act } from 'react';

@@ -1,20 +1,13 @@
 import React from 'react';
 import { Text, Box, useInput } from 'ink';
-import { Clickable } from 'ink-use-mouse';
+import { Clickable, Hoverable } from 'ink-use-mouse';
 import type { Route } from './useNavigation.js';
 
 interface Props {
   view: Route;
   canGoBack: boolean;
   onBack: () => void;
-  onNavigateTo?: (route: Route) => void;
-}
-
-function viewTitle(view: Route): string {
-  switch (view.type) {
-    case 'board': return 'Board';
-    case 'tasks': return `Tasks — ${view.repo}#${view.issue}`;
-  }
+  onNavigateTo: (route: Route) => void;
 }
 
 export function HeaderBar({ view, canGoBack, onBack, onNavigateTo }: Props) {
@@ -25,14 +18,14 @@ export function HeaderBar({ view, canGoBack, onBack, onNavigateTo }: Props) {
   return (
     <Box>
       <Text bold color="cyan">Alfred — </Text>
-      {onNavigateTo ? (
-        <Clickable onClick={() => onNavigateTo({ type: 'board' })}>
-          <Text bold color={view.type === 'board' ? 'cyan' : 'gray'} underline={view.type === 'board'}>Board</Text>
-        </Clickable>
-      ) : (
-        <Text bold color="cyan">{viewTitle(view)}</Text>
-      )}
-      {view.type === 'tasks' && onNavigateTo && (
+      <Clickable onClick={() => onNavigateTo({ type: 'board' })}>
+        <Hoverable>
+          {(hovered) => (
+            <Text bold color={view.type === 'board' ? 'cyan' : hovered ? 'white' : 'gray'} underline={view.type === 'board' || hovered}>Board</Text>
+          )}
+        </Hoverable>
+      </Clickable>
+      {view.type === 'tasks' && (
         <>
           <Text bold color="cyan"> — </Text>
           <Text bold color="cyan">{view.repo}#{view.issue}</Text>
@@ -40,7 +33,11 @@ export function HeaderBar({ view, canGoBack, onBack, onNavigateTo }: Props) {
       )}
       {canGoBack && (
         <Clickable onClick={onBack}>
-          <Text dimColor>  [Esc] Back</Text>
+          <Hoverable>
+            {(hovered) => (
+              <Text dimColor={!hovered} color={hovered ? 'white' : undefined}>  [Esc] Back</Text>
+            )}
+          </Hoverable>
         </Clickable>
       )}
     </Box>
