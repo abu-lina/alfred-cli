@@ -98,9 +98,16 @@ describe('fetchClosedIssues', () => {
   });
 });
 
+function nulLine(...fields: string[]): string {
+  return fields.join(String.fromCharCode(0));
+}
+
 describe('fetchCommits', () => {
   it('parses git log output', async () => {
-    mockExec('abc1234|feat: add login|2026-11-19T10:00:00+00:00\ndef5678|fix: typo|2026-11-19T09:00:00+00:00\n');
+    mockExec(
+      nulLine('abc1234', 'feat: add login', '2026-11-19T10:00:00+00:00') + '\n' +
+      nulLine('def5678', 'fix: typo', '2026-11-19T09:00:00+00:00') + '\n',
+    );
     const commits = await fetchCommits('/tmp/repo', '2026-11-18');
     expect(commits).toEqual([
       { sha: 'abc1234', message: 'feat: add login', date: '2026-11-19T10:00:00+00:00' },
@@ -112,6 +119,14 @@ describe('fetchCommits', () => {
     mockExec('');
     const commits = await fetchCommits('/tmp/repo', '2026-11-18');
     expect(commits).toEqual([]);
+  });
+
+  it('handles commit messages containing pipe characters', async () => {
+    mockExec(nulLine('abc1234', 'fix: handle A|B case', '2026-11-19T10:00:00+00:00') + '\n');
+    const commits = await fetchCommits('/tmp/repo', '2026-11-18');
+    expect(commits).toEqual([
+      { sha: 'abc1234', message: 'fix: handle A|B case', date: '2026-11-19T10:00:00+00:00' },
+    ]);
   });
 });
 

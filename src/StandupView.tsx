@@ -19,8 +19,12 @@ export function StandupView({ projects, state }: Props) {
     buildStandup(projects, state).then(d => {
       setData(d);
       setLoading(false);
+    }).catch(() => {
+      setData({ blockers: [], sections: [], asOf: Date.now() });
+      setLoading(false);
     });
-  }, [projects, state]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading || !data) {
     return (
