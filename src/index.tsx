@@ -67,13 +67,15 @@ function App() {
         <BoardView columns={columns} onSelect={(card) => nav.push({ type: 'tasks', repo: card.repo, issue: card.issue })} />
       )}
       {nav.view.type === 'tasks' && (() => {
-        const v = nav.view;
-        if (v.type !== 'tasks') return null;
+        const v = nav.view as { type: 'tasks'; repo: string; issue: number };
+        const filesState = state.files.get(
+          config.projects.find(p => p.repo === v.repo)?.path ?? '',
+        );
         return (
           <TasksView
             repo={v.repo}
             issue={v.issue}
-            notes={state.files.get(v.repo)?.notes.find(n => n.issue === v.issue)}
+            notes={filesState?.notes.find(n => n.issue === v.issue)}
           />
         );
       })()}
