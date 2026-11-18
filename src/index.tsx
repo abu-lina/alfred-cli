@@ -11,6 +11,7 @@ import { BoardView } from './BoardView.js';
 import { InboxView } from './InboxView.js';
 import { HeaderBar } from './HeaderBar.js';
 import { TasksView } from './TasksView.js';
+import { StandupView } from './StandupView.js';
 import { useNavigation } from './useNavigation.js';
 import type { RefreshState } from './types.js';
 import { emptyRefreshState } from './types.js';
@@ -78,6 +79,9 @@ function App() {
       )}
       {nav.view.type === 'board' && (
         <BoardView columns={columns} onSelect={(card) => nav.push({ type: 'tasks', repo: card.repo, issue: card.issue })} />
+      )}
+      {nav.view.type === 'standup' && (
+        <StandupView projects={config.projects} state={state} />
       )}
       {tasksRoute && (
         <TasksView repo={tasksRoute.repo} issue={tasksRoute.issue} reviews={tasksReviews} notes={tasksNotes} />
