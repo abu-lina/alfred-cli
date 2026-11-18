@@ -8,6 +8,7 @@ export interface PullRequest {
   labels: string[];
   reviewDecision: string;
   checksStatus: 'pass' | 'fail' | 'pending' | 'unknown';
+  createdAt: number;
 }
 
 export interface GitHubState {

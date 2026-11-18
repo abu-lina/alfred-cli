@@ -60,7 +60,7 @@ export function classifyCards(projects: ProjectConfig[], state: RefreshState): B
         title: pr.title,
         repo: project.repo,
         column: 'inProgress',
-        since: gh.updatedAt,
+        since: pr.createdAt,
       };
 
       if (signal?.type === 'block' || signal?.type === 'handoff') {

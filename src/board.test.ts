@@ -47,7 +47,7 @@ describe('classifyCards', () => {
 
   it('puts a lane with a block signal into needsYou', () => {
     const state = makeState({
-      prs: [{ number: 1, title: 'feat: thing', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/5-thing', labels: [], reviewDecision: '', checksStatus: 'pass' }],
+      prs: [{ number: 1, title: 'feat: thing', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/5-thing', labels: [], reviewDecision: '', checksStatus: 'pass', createdAt: Date.now() }],
       signals: [{ type: 'block', issue: 5, message: 'stuck', timestamp: Date.now() }],
     });
     const cols = classifyCards([PROJECT], state);
@@ -56,7 +56,7 @@ describe('classifyCards', () => {
 
   it('puts a lane with failed CI into needsYou', () => {
     const state = makeState({
-      prs: [{ number: 1, title: 'feat: broken', state: 'OPEN', isDraft: false, url: '', headRefName: 'feat/7-broken', labels: [], reviewDecision: '', checksStatus: 'fail' }],
+      prs: [{ number: 1, title: 'feat: broken', state: 'OPEN', isDraft: false, url: '', headRefName: 'feat/7-broken', labels: [], reviewDecision: '', checksStatus: 'fail', createdAt: Date.now() }],
     });
     const cols = classifyCards([PROJECT], state);
     expect(cols.needsYou.some(c => c.issue === 7)).toBe(true);
@@ -64,7 +64,7 @@ describe('classifyCards', () => {
 
   it('puts a lane with a handoff signal into needsYou', () => {
     const state = makeState({
-      prs: [{ number: 1, title: 'feat: done', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/3-done', labels: [], reviewDecision: '', checksStatus: 'pass' }],
+      prs: [{ number: 1, title: 'feat: done', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/3-done', labels: [], reviewDecision: '', checksStatus: 'pass', createdAt: Date.now() }],
       signals: [{ type: 'handoff', issue: 3, message: 'ready for checkpoint', timestamp: Date.now() }],
     });
     const cols = classifyCards([PROJECT], state);
@@ -73,7 +73,7 @@ describe('classifyCards', () => {
 
   it('puts a lane with a review decision into inReview', () => {
     const state = makeState({
-      prs: [{ number: 1, title: 'feat: reviewed', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/4-reviewed', labels: [], reviewDecision: 'APPROVED', checksStatus: 'pass' }],
+      prs: [{ number: 1, title: 'feat: reviewed', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/4-reviewed', labels: [], reviewDecision: 'APPROVED', checksStatus: 'pass', createdAt: Date.now() }],
     });
     const cols = classifyCards([PROJECT], state);
     expect(cols.inReview.some(c => c.issue === 4)).toBe(true);
@@ -81,7 +81,7 @@ describe('classifyCards', () => {
 
   it('puts a lane with local review results but no reviewDecision into inReview', () => {
     const state = makeState({
-      prs: [{ number: 1, title: 'feat: reviewed locally', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/4-reviewed', labels: [], reviewDecision: '', checksStatus: 'pass' }],
+      prs: [{ number: 1, title: 'feat: reviewed locally', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/4-reviewed', labels: [], reviewDecision: '', checksStatus: 'pass', createdAt: Date.now() }],
       reviews: [{ issue: 4, reviewer: 'code-review', verdict: 'PASS', critical: 0, important: 1, raw: '', updatedAt: Date.now() }],
     });
     const cols = classifyCards([PROJECT], state);
@@ -91,8 +91,8 @@ describe('classifyCards', () => {
   it('does not misclassify a PR without reviews when another PR has reviews', () => {
     const state = makeState({
       prs: [
-        { number: 1, title: 'feat: reviewed', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/4-reviewed', labels: [], reviewDecision: 'APPROVED', checksStatus: 'pass' },
-        { number: 2, title: 'feat: wip', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/8-wip', labels: [], reviewDecision: '', checksStatus: 'pass' },
+        { number: 1, title: 'feat: reviewed', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/4-reviewed', labels: [], reviewDecision: 'APPROVED', checksStatus: 'pass', createdAt: Date.now() },
+        { number: 2, title: 'feat: wip', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/8-wip', labels: [], reviewDecision: '', checksStatus: 'pass', createdAt: Date.now() },
       ],
     });
     const cols = classifyCards([PROJECT], state);
@@ -102,7 +102,7 @@ describe('classifyCards', () => {
 
   it('puts an active lane with no signal and no reviews into inProgress', () => {
     const state = makeState({
-      prs: [{ number: 1, title: 'feat: working', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/6-working', labels: [], reviewDecision: '', checksStatus: 'pending' }],
+      prs: [{ number: 1, title: 'feat: working', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/6-working', labels: [], reviewDecision: '', checksStatus: 'pending', createdAt: Date.now() }],
     });
     const cols = classifyCards([PROJECT], state);
     expect(cols.inProgress.some(c => c.issue === 6)).toBe(true);
@@ -110,7 +110,7 @@ describe('classifyCards', () => {
 
   it('does not put a ready issue into todo if it has an active PR', () => {
     const state = makeState({
-      prs: [{ number: 1, title: 'feat: thing', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/10-thing', labels: [], reviewDecision: '', checksStatus: 'pass' }],
+      prs: [{ number: 1, title: 'feat: thing', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/10-thing', labels: [], reviewDecision: '', checksStatus: 'pass', createdAt: Date.now() }],
       issues: [{ number: 10, title: 'New feature', labels: ['ready'] }],
     });
     const cols = classifyCards([PROJECT], state);

@@ -50,6 +50,7 @@ const prJson = JSON.stringify([
     labels: [{ name: 'P0' }, { name: 'type:feat' }],
     reviewDecision: 'REVIEW_REQUIRED',
     statusCheckRollup: [{ state: 'SUCCESS' }],
+    createdAt: '2026-01-15T10:00:00Z',
   },
 ]);
 
@@ -71,6 +72,7 @@ describe('parseGhPrJson', () => {
       labels: ['P0', 'type:feat'],
       reviewDecision: 'REVIEW_REQUIRED',
       checksStatus: 'pass',
+      createdAt: new Date('2026-01-15T10:00:00Z').getTime(),
     });
   });
 
@@ -82,7 +84,7 @@ describe('parseGhPrJson', () => {
     const json = JSON.stringify([{
       number: 2, title: 'x', state: 'OPEN', isDraft: false,
       url: 'u', headRefName: 'b', labels: [],
-      reviewDecision: '', statusCheckRollup: [{ state: 'FAILURE' }],
+      reviewDecision: '', statusCheckRollup: [{ state: 'FAILURE' }], createdAt: '2026-01-15T10:00:00Z',
     }]);
     expect(parseGhPrJson(json)[0]!.checksStatus).toBe('fail');
   });
@@ -91,7 +93,7 @@ describe('parseGhPrJson', () => {
     const json = JSON.stringify([{
       number: 3, title: 'x', state: 'OPEN', isDraft: false,
       url: 'u', headRefName: 'b', labels: [],
-      reviewDecision: '', statusCheckRollup: [{ state: 'PENDING' }],
+      reviewDecision: '', statusCheckRollup: [{ state: 'PENDING' }], createdAt: '2026-01-15T10:00:00Z',
     }]);
     expect(parseGhPrJson(json)[0]!.checksStatus).toBe('pending');
   });
@@ -99,7 +101,7 @@ describe('parseGhPrJson', () => {
   it('maps missing statusCheckRollup to unknown', () => {
     const json = JSON.stringify([{
       number: 4, title: 'x', state: 'OPEN', isDraft: false,
-      url: 'u', headRefName: 'b', labels: [], reviewDecision: '',
+      url: 'u', headRefName: 'b', labels: [], reviewDecision: '', createdAt: '2026-01-15T10:00:00Z',
     }]);
     expect(parseGhPrJson(json)[0]!.checksStatus).toBe('unknown');
   });
