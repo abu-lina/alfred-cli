@@ -15,7 +15,7 @@ export interface Navigation {
 }
 
 export function useNavigation(): Navigation {
-  const [stack, setStack] = useState<Route[]>([{ type: 'inbox' }]);
+  const [stack, setStack] = useState<Route[]>([{ type: 'board' }]);
 
   const push = useCallback((route: Route) => {
     setStack(prev => [...prev, route]);

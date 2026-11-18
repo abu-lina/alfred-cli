@@ -33,44 +33,23 @@ const cli = meow(`
   importMeta: import.meta,
 });
 
-function App() {
+function App({ config }: { config: import('./config.js').Config }) {
   const [state, setState] = useState<RefreshState>(emptyRefreshState());
-  const [config, setConfig] = useState<import('./config.js').Config | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [standupData, setStandupData] = useState<StandupData | null>(null);
   const nav = useNavigation();
 
   useEffect(() => {
-    let cfg;
-    try {
-      cfg = loadConfig();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      return;
-    }
-    setConfig(cfg);
-    const mgr = createRefreshManager(cfg, setState);
+    const mgr = createRefreshManager(config, setState);
     return () => mgr.stop();
-  }, []);
+  }, [config]);
 
   useEffect(() => {
-    if (nav.view.type !== 'standup' || !config) return;
+    if (nav.view.type !== 'standup') return;
     setStandupData(null);
     buildStandup(config.projects, state).then(setStandupData).catch(() => {
       setStandupData({ blockers: [], sections: [], asOf: Date.now() });
     });
   }, [nav.view.type === 'standup']);
-
-  if (error) {
-    return (
-      <Box flexDirection="column">
-        <Text color="red">Error: {error}</Text>
-        <Text dimColor>Run `alf init` to set up your config.</Text>
-      </Box>
-    );
-  }
-
-  if (!config) return <Text>Loading...</Text>;
 
   const columns = classifyCards(config.projects, state);
   const inboxItems = buildInbox(config.projects, state);
@@ -83,7 +62,7 @@ function App() {
 
   return (
     <Box flexDirection="column">
-      <HeaderBar view={nav.view} canGoBack={nav.canGoBack} onBack={nav.back} onNavigateTo={nav.navigateTo} />
+      <HeaderBar view={nav.view} canGoBack={nav.canGoBack} onBack={nav.back} onNavigateTo={nav.navigateTo} projectCount={config.projects.length} />
       {nav.view.type === 'inbox' && (
         <InboxView items={inboxItems} onSelect={(item) => nav.push({ type: 'tasks', repo: item.repo, issue: item.issue })} />
       )}
