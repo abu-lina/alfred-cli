@@ -126,6 +126,20 @@ describe('classifyCards', () => {
     expect(cols.todo[0]!.since).toBe(issueCreated);
   });
 
+  it('does not let a later progress signal overwrite a block signal', () => {
+    const now = Date.now();
+    const state = makeState({
+      prs: [{ number: 1, title: 'feat: stuck', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/5-stuck', labels: [], reviewDecision: '', checksStatus: 'pass', createdAt: now }],
+      signals: [
+        { type: 'block', issue: 5, message: 'need help', timestamp: now - 1000 },
+        { type: 'progress', issue: 5, message: 'working', timestamp: now },
+      ],
+    });
+    const cols = classifyCards([PROJECT], state);
+    expect(cols.needsYou.some(c => c.issue === 5)).toBe(true);
+    expect(cols.inProgress.some(c => c.issue === 5)).toBe(false);
+  });
+
   it('includes cards from multiple projects', () => {
     const project2: ProjectConfig = { name: 'other', prefix: 'OT', path: '/tmp/other', repo: 'owner/other', rexSession: 'ot' };
     const gh2: GitHubState = {

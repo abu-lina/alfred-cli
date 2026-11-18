@@ -39,10 +39,13 @@ export function classifyCards(projects: ProjectConfig[], state: RefreshState): B
     const reviewedIssues = new Set<number>();
     for (const r of reviews) reviewedIssues.add(r.issue);
 
+    const signalPriority: Record<LaneSignal['type'], number> = { block: 2, handoff: 1, progress: 0 };
     const signalByIssue = new Map<number, LaneSignal>();
     for (const s of signals) {
       const existing = signalByIssue.get(s.issue);
-      if (!existing || s.timestamp > existing.timestamp) {
+      if (!existing
+        || signalPriority[s.type] > signalPriority[existing.type]
+        || (signalPriority[s.type] === signalPriority[existing.type] && s.timestamp > existing.timestamp)) {
         signalByIssue.set(s.issue, s);
       }
     }
