@@ -635,4 +635,97 @@ describe('Init component', () => {
     expect(inst.lastFrame()).toContain('already in use');
     inst.unmount();
   });
+  it('edit mode preserves pollIntervalSeconds and theme from existing config', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    // Write config with custom pollInterval and theme
+    writeFileSync(configPath, JSON.stringify({
+      projects: [
+        { name: 'proj', prefix: 'PJ', path: '/tmp/proj', repo: 'o/proj', rexSession: 'proj-f' },
+      ],
+      github: { pollIntervalSeconds: 120 },
+      theme: 'dark',
+    }));
+
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    // Press 'e' to edit
+    inst.stdin.write('e');
+    await wait();
+
+    // Accept all fields unchanged
+    inst.stdin.write('\r'); // name
+    await wait();
+    inst.stdin.write('\r'); // prefix
+    await wait();
+    inst.stdin.write('\r'); // path
+    await wait();
+    inst.stdin.write('\r'); // repo
+    await wait();
+    inst.stdin.write('\r'); // rexSession
+    await wait();
+
+    // No more projects
+    inst.stdin.write('n');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('Config saved');
+    const cfg = loadConfig(configPath);
+    expect(cfg.github.pollIntervalSeconds).toBe(120);
+    expect(cfg.theme).toBe('dark');
+    inst.unmount();
+  });
+
+  it('overwrite mode writes fresh defaults without loaded config', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    writeFileSync(configPath, JSON.stringify({
+      projects: [
+        { name: 'old', prefix: 'OL', path: '/tmp/old', repo: 'o/old', rexSession: 'old-f' },
+      ],
+      github: { pollIntervalSeconds: 120 },
+      theme: 'dark',
+    }));
+
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    // Press 'o' to overwrite
+    inst.stdin.write('o');
+    await wait();
+
+    // Fill in a new project from scratch
+    inst.stdin.write('fresh');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('FR');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('/tmp/fresh');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('o/fresh');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('fresh-f');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    inst.stdin.write('n');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('Config saved');
+    const cfg = loadConfig(configPath);
+    expect(cfg.github.pollIntervalSeconds).toBe(60);
+    expect(cfg.theme).toBeUndefined();
+    inst.unmount();
+  });
 });
