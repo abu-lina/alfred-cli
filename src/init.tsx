@@ -1,6 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Text, Box, useInput, useApp } from 'ink';
 import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { loadConfig, saveConfig, validateProject, type Config, type ProjectConfig } from './config.js';
 
 interface Props {
@@ -17,7 +18,7 @@ const FIELDS: { key: Field; label: string; placeholder: string }[] = [
   { key: 'rexSession', label: 'Rex session name', placeholder: 'my-project-foreman' },
 ];
 
-type Phase = 'check-existing' | 'form' | 'confirm-another' | 'done';
+type Phase = 'check-existing' | 'form' | 'validating' | 'validation-error' | 'confirm-another' | 'done';
 
 export function Init({ configPath }: Props) {
   const { exit } = useApp();
@@ -32,6 +33,8 @@ export function Init({ configPath }: Props) {
   const [existingChoice, setExistingChoice] = useState('');
   const [editIndex, setEditIndex] = useState(-1);
   const [loadedConfig, setLoadedConfig] = useState<Config | null>(null);
+  const [pendingProject, setPendingProject] = useState<ProjectConfig | null>(null);
+  const [validationErrorField, setValidationErrorField] = useState<number>(-1);
 
   const currentField = FIELDS[fieldIndex];
 
@@ -61,6 +64,58 @@ export function Init({ configPath }: Props) {
     setPhase('form');
   }, [prefillField]);
 
+  const acceptProject = useCallback((project: ProjectConfig) => {
+    if (editIndex >= 0 && editIndex < projects.length) {
+      setProjects(prev => prev.map((p, i) => i === editIndex ? project : p));
+      const nextEdit = editIndex + 1;
+      if (nextEdit < projects.length) {
+        startEditProject(projects[nextEdit]!, nextEdit);
+        return;
+      }
+      setEditIndex(-1);
+      setDraft({});
+      setFieldIndex(0);
+      setInput('');
+      setPhase('confirm-another');
+    } else {
+      setProjects(prev => [...prev, project]);
+      setEditIndex(-1);
+      setDraft({});
+      setFieldIndex(0);
+      setPhase('confirm-another');
+    }
+  }, [editIndex, projects, startEditProject]);
+
+  // Run runtime validation when phase enters 'validating'
+  useEffect(() => {
+    if (phase !== 'validating' || !pendingProject) return;
+
+    // Check path exists on disk
+    if (!existsSync(pendingProject.path)) {
+      setError(`Path does not exist: ${pendingProject.path}`);
+      setValidationErrorField(FIELDS.findIndex(f => f.key === 'path'));
+      setPhase('validation-error');
+      return;
+    }
+
+    // Check repo accessible via gh
+    try {
+      execFileSync('gh', ['repo', 'view', pendingProject.repo], {
+        stdio: 'ignore',
+        env: { ...process.env, GH_HOST: '' },
+      });
+    } catch {
+      setError(`Repository not accessible: ${pendingProject.repo}`);
+      setValidationErrorField(FIELDS.findIndex(f => f.key === 'repo'));
+      setPhase('validation-error');
+      return;
+    }
+
+    // All good - accept the project
+    acceptProject(pendingProject);
+    setPendingProject(null);
+  }, [phase, pendingProject, acceptProject]);
+
   const submitField = useCallback(() => {
     if (!currentField) return;
     const value = input.trim();
@@ -78,7 +133,6 @@ export function Init({ configPath }: Props) {
         setInput('');
         return;
       }
-      // In edit mode, allow keeping the same prefix for the project being edited
       const otherPrefixes = projects
         .filter((_, i) => i !== editIndex)
         .map(p => p.prefix);
@@ -108,7 +162,6 @@ export function Init({ configPath }: Props) {
     if (fieldIndex < FIELDS.length - 1) {
       const nextIdx = fieldIndex + 1;
       setFieldIndex(nextIdx);
-      // Pre-fill next field if editing an existing project
       if (editIndex >= 0 && editIndex < projects.length) {
         prefillField(projects[editIndex]!, nextIdx);
       }
@@ -122,29 +175,9 @@ export function Init({ configPath }: Props) {
         setError(validationErrors.join(', '));
         return;
       }
-      if (editIndex >= 0 && editIndex < projects.length) {
-        // Replace the edited project
-        setProjects(prev => prev.map((p, i) => i === editIndex ? project : p));
-        const nextEdit = editIndex + 1;
-        if (nextEdit < projects.length) {
-          // Edit next existing project
-          startEditProject(projects[nextEdit]!, nextEdit);
-          return;
-        }
-        // Done editing all existing projects
-        setEditIndex(-1);
-        setDraft({});
-        setFieldIndex(0);
-        setInput('');
-        setPhase('confirm-another');
-      } else {
-        // Adding a new project
-        setProjects(prev => [...prev, project]);
-        setEditIndex(-1);
-        setDraft({});
-        setFieldIndex(0);
-        setPhase('confirm-another');
-      }
+      // Enter runtime validation phase
+      setPendingProject(project);
+      setPhase('validating');
     }
   }, [input, currentField, draft, fieldIndex, projects, editIndex, prefillField, startEditProject]);
 
@@ -166,6 +199,25 @@ export function Init({ configPath }: Props) {
       } else if (ch === 'c' || ch === 'C') {
         setPhase('done');
         setTimeout(() => exit(), 100);
+      }
+      return;
+    }
+
+    if (phase === 'validation-error') {
+      if (key.return) {
+        setPhase('form');
+        setFieldIndex(validationErrorField);
+        setInput(pendingProject ? pendingProject[FIELDS[validationErrorField]!.key] : '');
+        if (pendingProject) {
+          const restored: Partial<ProjectConfig> = {};
+          for (let i = 0; i < validationErrorField; i++) {
+            const f = FIELDS[i]!;
+            restored[f.key] = pendingProject[f.key];
+          }
+          setDraft(restored);
+        }
+        setError('');
+        setPendingProject(null);
       }
       return;
     }
@@ -208,6 +260,25 @@ export function Init({ configPath }: Props) {
         <Text bold color="cyan">Alfred CLI Setup</Text>
         <Text>Config already exists at {configPath}</Text>
         <Text>[o] Overwrite  [e] Edit  [c] Cancel</Text>
+      </Box>
+    );
+  }
+
+  if (phase === 'validating') {
+    return (
+      <Box flexDirection="column">
+        <Text bold color="cyan">Alfred CLI Setup</Text>
+        <Text color="yellow">Validating project...</Text>
+      </Box>
+    );
+  }
+
+  if (phase === 'validation-error') {
+    return (
+      <Box flexDirection="column">
+        <Text bold color="cyan">Alfred CLI Setup</Text>
+        <Text color="red">{error}</Text>
+        <Text dimColor>Press Enter to correct</Text>
       </Box>
     );
   }
