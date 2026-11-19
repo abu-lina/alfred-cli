@@ -468,4 +468,171 @@ describe('Init component', () => {
     expect(cfg.projects[1]!.name).toBe('beta');
     inst.unmount();
   });
+
+  it('cancel flow exits without modifying config when user presses c', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    writeExistingConfig(configPath);
+    const originalContent = require('node:fs').readFileSync(configPath, 'utf-8');
+
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    expect(inst.lastFrame()).toContain('already exists');
+
+    // Press 'c' to cancel
+    inst.stdin.write('c');
+    await wait();
+
+    // Component exits to 'done' phase — original config untouched
+    const afterContent = require('node:fs').readFileSync(configPath, 'utf-8');
+    expect(afterContent).toBe(originalContent);
+    inst.unmount();
+  });
+
+  it('shows error when submitting empty project name', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    // Submit empty name
+    inst.stdin.write('\r');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('cannot be empty');
+    inst.unmount();
+  });
+
+  it('shows error when submitting empty prefix', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    // Fill name, then submit empty prefix
+    inst.stdin.write('test');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('\r'); // empty prefix
+    await wait();
+
+    expect(inst.lastFrame()).toContain('cannot be empty');
+    inst.unmount();
+  });
+
+  it('rejects relative path at component level', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    // Name
+    inst.stdin.write('test');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    // Prefix
+    inst.stdin.write('TP');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    // Relative path
+    inst.stdin.write('relative/path');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('absolute path');
+    inst.unmount();
+  });
+
+  it('rejects bad repo format at component level', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    // Name
+    inst.stdin.write('test');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    // Prefix
+    inst.stdin.write('TP');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    // Path
+    inst.stdin.write('/tmp/test');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    // Bad repo
+    inst.stdin.write('noslash');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('owner/name');
+    inst.unmount();
+  });
+
+  it('rejects duplicate prefix when adding second project', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    // First project
+    inst.stdin.write('proj1');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('AA');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('/tmp/proj1');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('owner/proj1');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('proj1-foreman');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    // Add another
+    inst.stdin.write('y');
+    await wait();
+
+    // Second project with duplicate prefix
+    inst.stdin.write('proj2');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('AA');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('already in use');
+    inst.unmount();
+  });
 });

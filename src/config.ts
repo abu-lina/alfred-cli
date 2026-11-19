@@ -105,12 +105,25 @@ export function loadConfig(filePath: string = DEFAULT_CONFIG_PATH): Config {
 }
 
 export function saveConfig(config: Config, filePath: string = DEFAULT_CONFIG_PATH): void {
-  mkdirSync(dirname(filePath), { recursive: true });
-  writeFileSync(filePath, JSON.stringify(config, null, 2) + '\n');
+  try {
+    mkdirSync(dirname(filePath), { recursive: true });
+    writeFileSync(filePath, JSON.stringify(config, null, 2) + '\n');
+  } catch (err) {
+    throw new Error(`Failed to write config to ${filePath}: ${(err as Error).message}`);
+  }
 }
 
 export function validateProject(project: ProjectConfig, existingPrefixes: string[]): string[] {
   const errors: string[] = [];
+  if (!project.name) {
+    errors.push('name cannot be empty');
+  }
+  if (!project.path) {
+    errors.push('path cannot be empty');
+  }
+  if (!project.repo) {
+    errors.push('repo cannot be empty');
+  }
   if (!/^[A-Z]{2}$/.test(project.prefix)) {
     errors.push('prefix must be 2 uppercase letters');
   }
