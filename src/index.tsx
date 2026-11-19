@@ -109,9 +109,16 @@ if (!command || command === 'start') {
     process.exit(1);
   }
   // Alternate screen pins Ink's output to row 1 for mouse hit-testing; must precede the first frame
-  process.stdout.write('\x1b[?1049h\x1b[H');
-  process.on('exit', () => process.stdout.write('\x1b[?1049l'));
-  render(<App config={config} />);
+  const altScreen = process.stdout.isTTY;
+  const leaveAltScreen = () => { if (altScreen) process.stdout.write('\x1b[?1049l'); };
+  if (altScreen) process.stdout.write('\x1b[?1049h\x1b[H');
+  process.on('exit', leaveAltScreen);
+  render(<App config={config} />).waitUntilExit().catch((err) => {
+    // Ink drew the error on the alt screen, which is about to vanish; reprint it on the primary screen
+    leaveAltScreen();
+    console.error(err);
+    process.exitCode = 1;
+  });
 } else if (command === 'init') {
   render(<Init configPath={DEFAULT_CONFIG_PATH} />);
 } else if (command === 'status') {

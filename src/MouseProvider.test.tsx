@@ -9,9 +9,10 @@ const written = (frames: string[]) => frames.join('');
 
 describe('MouseProvider', () => {
   it('enables button tracking and SGR mode on mount', async () => {
-    const { frames } = render(<MouseProvider><Text>hi</Text></MouseProvider>);
+    const { frames, unmount } = render(<MouseProvider><Text>hi</Text></MouseProvider>);
     await wait();
     expect(written(frames)).toContain('\x1b[?1000h');
     expect(written(frames)).toContain('\x1b[?1006h');
+    unmount();
   });
 });
