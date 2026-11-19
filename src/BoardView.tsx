@@ -13,7 +13,7 @@ const COLUMN_COLORS: Record<BoardCard['column'], string> = {
   needsYou: 'red',
   inProgress: 'yellow',
   inReview: 'cyan',
-  todo: 'white',
+  todo: 'gray',
 };
 
 const COLUMN_LABELS: Record<BoardCard['column'], string> = {
