@@ -19,6 +19,15 @@ function tmpDir(): string {
   return d;
 }
 
+function writeExistingConfig(configPath: string, projects = [
+  { name: 'old', prefix: 'OL', path: '/tmp/old', repo: 'o/old', rexSession: 'old-foreman' },
+]) {
+  writeFileSync(configPath, JSON.stringify({
+    projects,
+    github: { pollIntervalSeconds: 60 },
+  }));
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
@@ -223,15 +232,240 @@ describe('Init component', () => {
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
-    writeFileSync(configPath, JSON.stringify({
-      projects: [{ name: 'old', prefix: 'OL', path: '/tmp/old', repo: 'o/old', rexSession: 'old' }],
-      github: { pollIntervalSeconds: 60 },
-    }));
+    writeExistingConfig(configPath);
 
     const inst = render(<Init configPath={configPath} />);
     await wait();
 
     expect(inst.lastFrame()).toContain('already exists');
+    inst.unmount();
+  });
+
+  it('shows Edit option when config exists', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    writeExistingConfig(configPath);
+
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    expect(inst.lastFrame()).toContain('[e] Edit');
+    inst.unmount();
+  });
+
+  it('edit mode pre-fills fields from existing config', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    writeExistingConfig(configPath);
+
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    // Press 'e' to edit
+    inst.stdin.write('e');
+    await wait();
+
+    // Should show the form with the first field pre-filled
+    expect(inst.lastFrame()).toContain('Editing project: old');
+    expect(inst.lastFrame()).toContain('old');
+    inst.unmount();
+  });
+
+  it('edit mode preserves unchanged fields on Enter', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    writeExistingConfig(configPath);
+
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    // Press 'e' to edit
+    inst.stdin.write('e');
+    await wait();
+
+    // Accept all existing fields by pressing Enter
+    inst.stdin.write('\r'); // name: old
+    await wait();
+    inst.stdin.write('\r'); // prefix: OL
+    await wait();
+    inst.stdin.write('\r'); // path: /tmp/old
+    await wait();
+    inst.stdin.write('\r'); // repo: o/old
+    await wait();
+    inst.stdin.write('\r'); // rexSession: old-foreman
+    await wait();
+
+    // Should ask to add another — say no
+    expect(inst.lastFrame()).toContain('Add another');
+    inst.stdin.write('n');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('Config saved');
+    const cfg = loadConfig(configPath);
+    expect(cfg.projects).toHaveLength(1);
+    expect(cfg.projects[0]!.name).toBe('old');
+    expect(cfg.projects[0]!.prefix).toBe('OL');
+    expect(cfg.projects[0]!.path).toBe('/tmp/old');
+    expect(cfg.projects[0]!.repo).toBe('o/old');
+    expect(cfg.projects[0]!.rexSession).toBe('old-foreman');
+    inst.unmount();
+  });
+
+  it('edit mode allows modifying individual fields', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    writeExistingConfig(configPath);
+
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    // Press 'e' to edit
+    inst.stdin.write('e');
+    await wait();
+
+    // Clear the pre-filled name and type a new one
+    // Need to backspace the existing "old" (3 chars) and type "newname"
+    inst.stdin.write('\x7f'); // backspace
+    await wait();
+    inst.stdin.write('\x7f');
+    await wait();
+    inst.stdin.write('\x7f');
+    await wait();
+    inst.stdin.write('newname');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    // Accept remaining fields
+    inst.stdin.write('\r'); // prefix: OL
+    await wait();
+    inst.stdin.write('\r'); // path: /tmp/old
+    await wait();
+    inst.stdin.write('\r'); // repo: o/old
+    await wait();
+    inst.stdin.write('\r'); // rexSession: old-foreman
+    await wait();
+
+    expect(inst.lastFrame()).toContain('Add another');
+    inst.stdin.write('n');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('Config saved');
+    const cfg = loadConfig(configPath);
+    expect(cfg.projects[0]!.name).toBe('newname');
+    // Unchanged fields preserved
+    expect(cfg.projects[0]!.prefix).toBe('OL');
+    expect(cfg.projects[0]!.path).toBe('/tmp/old');
+    expect(cfg.projects[0]!.repo).toBe('o/old');
+    expect(cfg.projects[0]!.rexSession).toBe('old-foreman');
+    inst.unmount();
+  });
+
+  it('edit mode validates modified fields', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    writeExistingConfig(configPath);
+
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    inst.stdin.write('e');
+    await wait();
+
+    // Accept name
+    inst.stdin.write('\r');
+    await wait();
+
+    // Try to change prefix to invalid value
+    inst.stdin.write('\x7f');
+    await wait();
+    inst.stdin.write('\x7f');
+    await wait();
+    inst.stdin.write('zz');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('2 uppercase');
+
+    // Fix it
+    inst.stdin.write('ZZ');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    // Accept remaining fields
+    inst.stdin.write('\r'); // path
+    await wait();
+    inst.stdin.write('\r'); // repo
+    await wait();
+    inst.stdin.write('\r'); // rexSession
+    await wait();
+
+    inst.stdin.write('n');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('Config saved');
+    const cfg = loadConfig(configPath);
+    expect(cfg.projects[0]!.prefix).toBe('ZZ');
+    inst.unmount();
+  });
+
+  it('edit mode handles multiple existing projects', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    writeExistingConfig(configPath, [
+      { name: 'alpha', prefix: 'AA', path: '/tmp/alpha', repo: 'o/alpha', rexSession: 'alpha-f' },
+      { name: 'beta', prefix: 'BB', path: '/tmp/beta', repo: 'o/beta', rexSession: 'beta-f' },
+    ]);
+
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    inst.stdin.write('e');
+    await wait();
+
+    // Accept all fields of first project
+    expect(inst.lastFrame()).toContain('Editing project: alpha');
+    inst.stdin.write('\r'); // name
+    await wait();
+    inst.stdin.write('\r'); // prefix
+    await wait();
+    inst.stdin.write('\r'); // path
+    await wait();
+    inst.stdin.write('\r'); // repo
+    await wait();
+    inst.stdin.write('\r'); // rexSession
+    await wait();
+
+    // Should move to second project
+    expect(inst.lastFrame()).toContain('Editing project: beta');
+    inst.stdin.write('\r'); // name
+    await wait();
+    inst.stdin.write('\r'); // prefix
+    await wait();
+    inst.stdin.write('\r'); // path
+    await wait();
+    inst.stdin.write('\r'); // repo
+    await wait();
+    inst.stdin.write('\r'); // rexSession
+    await wait();
+
+    expect(inst.lastFrame()).toContain('Add another');
+    inst.stdin.write('n');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('Config saved');
+    const cfg = loadConfig(configPath);
+    expect(cfg.projects).toHaveLength(2);
+    expect(cfg.projects[0]!.name).toBe('alpha');
+    expect(cfg.projects[1]!.name).toBe('beta');
     inst.unmount();
   });
 });

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Text, Box, useInput, useApp } from 'ink';
 import { existsSync } from 'node:fs';
-import { saveConfig, validateProject, type Config, type ProjectConfig } from './config.js';
+import { loadConfig, saveConfig, validateProject, type Config, type ProjectConfig } from './config.js';
 
 interface Props {
   configPath: string;
@@ -30,6 +30,7 @@ export function Init({ configPath }: Props) {
   const [draft, setDraft] = useState<Partial<ProjectConfig>>({});
   const [error, setError] = useState('');
   const [existingChoice, setExistingChoice] = useState('');
+  const [editIndex, setEditIndex] = useState(-1);
 
   const currentField = FIELDS[fieldIndex];
 
@@ -42,6 +43,21 @@ export function Init({ configPath }: Props) {
     setPhase('done');
     setTimeout(() => exit(), 100);
   }, [configPath, exit]);
+
+  const prefillField = useCallback((project: ProjectConfig, fIdx: number) => {
+    const field = FIELDS[fIdx];
+    if (field) {
+      setInput(project[field.key]);
+    }
+  }, []);
+
+  const startEditProject = useCallback((proj: ProjectConfig, idx: number) => {
+    setEditIndex(idx);
+    setDraft({});
+    setFieldIndex(0);
+    prefillField(proj, 0);
+    setPhase('form');
+  }, [prefillField]);
 
   const submitField = useCallback(() => {
     if (!currentField) return;
@@ -60,8 +76,11 @@ export function Init({ configPath }: Props) {
         setInput('');
         return;
       }
-      const taken = projects.map(p => p.prefix);
-      if (taken.includes(value)) {
+      // In edit mode, allow keeping the same prefix for the project being edited
+      const otherPrefixes = projects
+        .filter((_, i) => i !== editIndex)
+        .map(p => p.prefix);
+      if (otherPrefixes.includes(value)) {
         setError(`prefix "${value}" is already in use`);
         setInput('');
         return;
@@ -85,26 +104,62 @@ export function Init({ configPath }: Props) {
     setInput('');
 
     if (fieldIndex < FIELDS.length - 1) {
-      setFieldIndex(fieldIndex + 1);
+      const nextIdx = fieldIndex + 1;
+      setFieldIndex(nextIdx);
+      // Pre-fill next field if editing an existing project
+      if (editIndex >= 0 && editIndex < projects.length) {
+        prefillField(projects[editIndex]!, nextIdx);
+      }
     } else {
       const project = updated as ProjectConfig;
-      const validationErrors = validateProject(project, projects.map(p => p.prefix));
+      const otherPrefixes = projects
+        .filter((_, i) => i !== editIndex)
+        .map(p => p.prefix);
+      const validationErrors = validateProject(project, otherPrefixes);
       if (validationErrors.length > 0) {
         setError(validationErrors.join(', '));
         return;
       }
-      setProjects(prev => [...prev, project]);
-      setDraft({});
-      setFieldIndex(0);
-      setPhase('confirm-another');
+      if (editIndex >= 0 && editIndex < projects.length) {
+        // Replace the edited project
+        setProjects(prev => prev.map((p, i) => i === editIndex ? project : p));
+        const nextEdit = editIndex + 1;
+        if (nextEdit < projects.length) {
+          // Edit next existing project
+          startEditProject(projects[nextEdit]!, nextEdit);
+          return;
+        }
+        // Done editing all existing projects
+        setEditIndex(-1);
+        setDraft({});
+        setFieldIndex(0);
+        setInput('');
+        setPhase('confirm-another');
+      } else {
+        // Adding a new project
+        setProjects(prev => [...prev, project]);
+        setEditIndex(-1);
+        setDraft({});
+        setFieldIndex(0);
+        setPhase('confirm-another');
+      }
     }
-  }, [input, currentField, draft, fieldIndex, projects]);
+  }, [input, currentField, draft, fieldIndex, projects, editIndex, prefillField, startEditProject]);
 
   useInput((ch, key) => {
     if (phase === 'check-existing') {
       if (ch === 'o' || ch === 'O') {
         setExistingChoice('overwrite');
         setPhase('form');
+      } else if (ch === 'e' || ch === 'E') {
+        try {
+          const existing = loadConfig(configPath);
+          setExistingChoice('edit');
+          setProjects(existing.projects);
+          startEditProject(existing.projects[0]!, 0);
+        } catch {
+          setError('Failed to load existing config');
+        }
       } else if (ch === 'c' || ch === 'C') {
         setPhase('done');
         setTimeout(() => exit(), 100);
@@ -114,6 +169,7 @@ export function Init({ configPath }: Props) {
 
     if (phase === 'confirm-another') {
       if (ch === 'y' || ch === 'Y') {
+        setEditIndex(-1);
         setPhase('form');
       } else if (ch === 'n' || ch === 'N') {
         finishSetup(projects);
@@ -148,7 +204,7 @@ export function Init({ configPath }: Props) {
       <Box flexDirection="column">
         <Text bold color="cyan">Alfred CLI Setup</Text>
         <Text>Config already exists at {configPath}</Text>
-        <Text>[o] Overwrite  [c] Cancel</Text>
+        <Text>[o] Overwrite  [e] Edit  [c] Cancel</Text>
       </Box>
     );
   }
@@ -166,7 +222,10 @@ export function Init({ configPath }: Props) {
   return (
     <Box flexDirection="column">
       <Text bold color="cyan">Alfred CLI Setup</Text>
-      {projects.length > 0 && (
+      {editIndex >= 0 && editIndex < projects.length && (
+        <Text dimColor>Editing project: {projects[editIndex]!.name}</Text>
+      )}
+      {projects.length > 0 && editIndex < 0 && (
         <Text dimColor>{projects.length} project(s) added</Text>
       )}
       {error && <Text color="red">{error}</Text>}
