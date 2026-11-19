@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -253,6 +253,19 @@ describe('saveConfig', () => {
     saveConfig(cfg, p);
     expect(existsSync(p)).toBe(true);
   });
+
+  it('throws descriptive error on write failure', () => {
+    const p = tmpFile();
+    dirs.push(join(p, '..'));
+    // Write a regular file, then try to saveConfig using it as a directory
+    writeFileSync(p, 'block');
+    const badPath = join(p, 'nested', 'config.json');
+    const cfg: Config = {
+      projects: [validProject as ProjectConfig],
+      github: { pollIntervalSeconds: 60 },
+    };
+    expect(() => saveConfig(cfg, badPath)).toThrow(/failed to write config/i);
+  });
 });
 
 describe('validateProject', () => {
@@ -287,5 +300,20 @@ describe('validateProject', () => {
       [],
     );
     expect(errors.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('returns error when name is empty', () => {
+    const errors = validateProject({ ...validProject, name: '' } as ProjectConfig, []);
+    expect(errors.some(e => /name.*empty/i.test(e))).toBe(true);
+  });
+
+  it('returns error when path is empty', () => {
+    const errors = validateProject({ ...validProject, path: '' } as ProjectConfig, []);
+    expect(errors.some(e => /path.*empty/i.test(e))).toBe(true);
+  });
+
+  it('returns error when repo is empty', () => {
+    const errors = validateProject({ ...validProject, repo: '' } as ProjectConfig, []);
+    expect(errors.some(e => /repo.*empty/i.test(e))).toBe(true);
   });
 });
