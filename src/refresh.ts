@@ -82,6 +82,10 @@ export function createRefreshManager(
         else fileState.reviews.push(review);
         notify();
       },
+      onError: () => {
+        state.sources.fileWatch = 'error';
+        notify();
+      },
     });
     cleanups.push(cleanup);
     state.sources.fileWatch = 'ok';

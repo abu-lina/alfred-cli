@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdirSync, rmSync, writeFileSync, symlinkSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync, symlinkSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -288,5 +288,29 @@ describe('watchProject', () => {
     cleanup();
     // The symlink-traversal worktree should have been skipped entirely
     expect(signals).toHaveLength(0);
+  });
+
+  it('calls onError when the worktrees directory is unreadable', () => {
+    const dir = tmpDir();
+    dirs.push(dir);
+    const worktreesDir = join(dir, '.worktrees');
+    mkdirSync(worktreesDir, { recursive: true });
+
+    // Remove read+exec permissions so readdirSync throws
+    chmodSync(worktreesDir, 0o000);
+
+    const errors: unknown[] = [];
+    const cleanup = watchProject(dir, {
+      onSignal: () => {},
+      onNotes: () => {},
+      onReview: () => {},
+      onError: (err) => errors.push(err),
+    });
+
+    cleanup();
+    // Restore permissions for cleanup
+    chmodSync(worktreesDir, 0o755);
+
+    expect(errors.length).toBeGreaterThanOrEqual(1);
   });
 });
