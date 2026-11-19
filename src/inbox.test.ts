@@ -109,7 +109,7 @@ describe('buildInbox', () => {
     expect(items).toHaveLength(0);
   });
 
-  it('uses latest signal when multiple signals exist for same issue', () => {
+  it('prefers higher-priority signal over a newer lower-priority one', () => {
     const old = Date.now() - 10_000;
     const recent = Date.now();
     const state = makeState({
@@ -120,8 +120,21 @@ describe('buildInbox', () => {
       ],
     });
     const items = buildInbox([PROJECT], state);
-    expect(items.filter(i => i.reason === 'Blocked')).toHaveLength(0);
-    expect(items.filter(i => i.reason === 'Finished')).toHaveLength(1);
+    expect(items.filter(i => i.reason === 'Blocked')).toHaveLength(1);
+    expect(items.filter(i => i.reason === 'Finished')).toHaveLength(0);
+  });
+
+  it('block signal wins over a later progress signal', () => {
+    const state = makeState({
+      prs: [makePr({ headRefName: 'feat/5-thing' })],
+      signals: [
+        { type: 'block', issue: 5, message: 'stuck on API', timestamp: 100 },
+        { type: 'progress', issue: 5, message: 'wip', timestamp: 200 },
+      ],
+    });
+    const items = buildInbox([PROJECT], state);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ reason: 'Blocked', detail: 'stuck on API' });
   });
 
   it('collects items from multiple projects', () => {
