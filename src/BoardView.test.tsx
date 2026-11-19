@@ -10,6 +10,7 @@ function card(overrides: Partial<BoardCard> & { issue: number; prefix: string })
     title: `Issue ${overrides.issue}`,
     repo: 'owner/test',
     column: 'todo',
+    tier: "—",
     since: Date.now() - 60_000,
     ...overrides,
   };
@@ -164,4 +165,18 @@ describe('BoardView', () => {
     expect(selected[0]!.issue).toBe(1);
     inst.unmount();
   });
+
+  it('renders agent tier on card', () => {
+    const cols: BoardColumns = {
+      needsYou: [],
+      inProgress: [card({ issue: 5, prefix: 'TP', column: 'inProgress', tier: 'strong' })],
+      inReview: [],
+      todo: [],
+    };
+    const inst = render(<BoardView columns={cols} onSelect={() => {}} />);
+    const frame = inst.lastFrame()!;
+    expect(frame).toContain('[strong]');
+    inst.unmount();
+  });
+
 });
