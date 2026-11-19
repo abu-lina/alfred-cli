@@ -113,6 +113,12 @@ if (!command || command === 'start') {
   const leaveAltScreen = () => { if (altScreen) process.stdout.write('\x1b[?1049l'); };
   if (altScreen) process.stdout.write('\x1b[?1049h\x1b[H');
   process.on('exit', leaveAltScreen);
+  // Crashes outside React (refresh manager async code) would print on the alt screen and vanish; Node routes unhandled rejections here too
+  process.on('uncaughtException', (err) => {
+    leaveAltScreen();
+    console.error(err);
+    process.exit(1);
+  });
   render(<App config={config} />).waitUntilExit().catch((err) => {
     // Ink drew the error on the alt screen, which is about to vanish; reprint it on the primary screen
     leaveAltScreen();
