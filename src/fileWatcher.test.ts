@@ -9,6 +9,7 @@ import {
   parseLaneNotesSections,
   parseReviewResult,
   sanitizeFilename,
+  sanitizeContent,
   watchProject,
 } from './fileWatcher.js';
 import type { LaneSignal, LaneNotes, ReviewResult } from './types.js';
@@ -159,6 +160,20 @@ describe('sanitizeFilename', () => {
 
   it('leaves clean filenames unchanged', () => {
     expect(sanitizeFilename('code-reviewer')).toBe('code-reviewer');
+  });
+});
+
+describe('sanitizeContent', () => {
+  it('strips ANSI color sequences from content', () => {
+    expect(sanitizeContent('\x1b[31mred text\x1b[0m')).toBe('red text');
+  });
+
+  it('strips control characters but preserves newlines and tabs', () => {
+    expect(sanitizeContent('line1\nline2\t\x00\x07end')).toBe('line1\nline2\tend');
+  });
+
+  it('leaves clean content unchanged', () => {
+    expect(sanitizeContent('**Verdict:** Pass\n**Critical:** 0')).toBe('**Verdict:** Pass\n**Critical:** 0');
   });
 });
 

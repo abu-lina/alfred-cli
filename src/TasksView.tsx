@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Text, Box, useInput } from 'ink';
 import { Clickable, Hoverable } from 'ink-use-mouse';
-import { parseLaneNotesSections } from './fileWatcher.js';
+import { parseLaneNotesSections, sanitizeContent } from './fileWatcher.js';
 import type { ReviewResult, LaneNotes } from './types.js';
 
 interface Props {
@@ -60,7 +60,7 @@ export function TasksView({ repo, issue, reviews, notes }: Props) {
               </Clickable>
               {expandedIndex === i && (
                 <Box paddingLeft={2} flexDirection="column">
-                  <Text>{r.raw}</Text>
+                  <Text>{sanitizeContent(r.raw)}</Text>
                 </Box>
               )}
             </Box>

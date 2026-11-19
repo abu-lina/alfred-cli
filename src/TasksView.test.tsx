@@ -108,6 +108,27 @@ describe('TasksView — reviews', () => {
     inst.unmount();
   });
 
+  it('strips ANSI escape sequences from review content when expanded', async () => {
+    const raw = '**Verdict:** Pass\n\x1b[31mmalicious\x1b[0m injection\x00here';
+    const inst = render(
+      <TasksView
+        repo="owner/repo"
+        issue={7}
+        reviews={[review({ reviewer: 'code-reviewer', raw })]}
+        notes={undefined}
+      />,
+    );
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    const frame = inst.lastFrame()!;
+    expect(frame).toContain('malicious');
+    expect(frame).toContain('injection');
+    expect(frame).not.toContain('\x1b[31m');
+    expect(frame).not.toContain('\x00');
+    inst.unmount();
+  });
+
   it('collapses an expanded review on enter again', async () => {
     const raw = '**Verdict:** Pass\n**Critical:** 0\n**Important:** 0\n\n## Findings\nAll good here.';
     const inst = render(
