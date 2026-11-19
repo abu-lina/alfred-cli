@@ -4,6 +4,11 @@ import type { LaneSignal, LaneNotes, ReviewResult } from './types.js';
 
 const SIGNAL_TYPES = new Set<string>(['block', 'handoff', 'progress']);
 
+/** Strip control characters (0x00-0x1F, 0x7F) to prevent terminal escape injection. */
+export function sanitizeFilename(name: string): string {
+  return name.replace(/[\x00-\x1f\x7f]/g, '');
+}
+
 export function parseLaneSignal(raw: string): LaneSignal | null {
   try {
     const obj = JSON.parse(raw);
@@ -131,7 +136,7 @@ export function watchProject(projectPath: string, callbacks: WatchCallbacks): ()
       try {
         const reviewDir = join(wtDir, '.review-results');
         const raw = readFileSync(join(reviewDir, filename), 'utf-8');
-        const reviewer = filename.replace(/\.md$/, '');
+        const reviewer = sanitizeFilename(filename.replace(/\.md$/, ''));
         callbacks.onReview(parseReviewResult(raw, reviewer, issue));
       } catch {
         // file may have been deleted
