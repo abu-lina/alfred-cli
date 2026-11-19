@@ -15,7 +15,7 @@ import { HeaderBar } from './HeaderBar.js';
 import { TasksView } from './TasksView.js';
 import { StandupView } from './StandupView.js';
 import { useNavigation } from './useNavigation.js';
-import { MouseProvider } from './MouseProvider.js';
+import { MouseProvider, disableMouseTracking } from './MouseProvider.js';
 import type { RefreshState } from './types.js';
 import { emptyRefreshState } from './types.js';
 
@@ -110,18 +110,26 @@ if (!command || command === 'start') {
   }
   // Alternate screen pins Ink's output to row 1 for mouse hit-testing; must precede the first frame
   const altScreen = process.stdout.isTTY;
-  const leaveAltScreen = () => { if (altScreen) process.stdout.write('\x1b[?1049l'); };
+  // Fallback for paths where React cleanup never runs (crash, process.exit)
+  // shortcut: a bare external SIGTERM/SIGHUP skips 'exit'; add signal handlers if that bites
+  let restored = false;
+  const restoreTerminal = () => {
+    if (!altScreen || restored) return;
+    restored = true;
+    disableMouseTracking(process.stdout);
+    try { process.stdout.write('\x1b[?1049l'); } catch { /* stdout closed */ }
+  };
   if (altScreen) process.stdout.write('\x1b[?1049h\x1b[H');
-  process.on('exit', leaveAltScreen);
+  process.on('exit', restoreTerminal);
   // Crashes outside React (refresh manager async code) would print on the alt screen and vanish; Node routes unhandled rejections here too
   process.on('uncaughtException', (err) => {
-    leaveAltScreen();
+    restoreTerminal();
     console.error(err);
     process.exit(1);
   });
   render(<App config={config} />).waitUntilExit().catch((err) => {
     // Ink drew the error on the alt screen, which is about to vanish; reprint it on the primary screen
-    leaveAltScreen();
+    restoreTerminal();
     console.error(err);
     process.exitCode = 1;
   });
