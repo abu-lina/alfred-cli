@@ -12,8 +12,11 @@ interface Props {
 }
 
 export function HeaderBar({ view, canGoBack, onBack, onNavigateTo, projectCount }: Props) {
-  useInput((_input, key) => {
+  useInput((input, key) => {
     if (key.escape && canGoBack) onBack();
+    if (input === '1') onNavigateTo({ type: 'inbox' });
+    if (input === '2') onNavigateTo({ type: 'board' });
+    if (input === '3') onNavigateTo({ type: 'standup' });
   });
 
   return (

@@ -46,3 +46,35 @@ describe('HeaderBar', () => {
     inst.unmount();
   });
 });
+
+describe('HeaderBar keyboard shortcuts', () => {
+  it('pressing 1 navigates to inbox', async () => {
+    let route: unknown = null;
+    const inst = render(<HeaderBar view={{ type: 'board' }} canGoBack={false} onBack={noop} onNavigateTo={(r) => { route = r; }} projectCount={1} />);
+    await wait();
+    inst.stdin.write('1');
+    await wait();
+    expect(route).toEqual({ type: 'inbox' });
+    inst.unmount();
+  });
+
+  it('pressing 2 navigates to board', async () => {
+    let route: unknown = null;
+    const inst = render(<HeaderBar view={{ type: 'inbox' }} canGoBack={false} onBack={noop} onNavigateTo={(r) => { route = r; }} projectCount={1} />);
+    await wait();
+    inst.stdin.write('2');
+    await wait();
+    expect(route).toEqual({ type: 'board' });
+    inst.unmount();
+  });
+
+  it('pressing 3 navigates to standup', async () => {
+    let route: unknown = null;
+    const inst = render(<HeaderBar view={{ type: 'board' }} canGoBack={false} onBack={noop} onNavigateTo={(r) => { route = r; }} projectCount={1} />);
+    await wait();
+    inst.stdin.write('3');
+    await wait();
+    expect(route).toEqual({ type: 'standup' });
+    inst.unmount();
+  });
+});
