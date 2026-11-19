@@ -8,6 +8,7 @@ import {
   parseLaneNotes,
   parseLaneNotesSections,
   parseReviewResult,
+  sanitizeFilename,
   watchProject,
 } from './fileWatcher.js';
 import type { LaneSignal, LaneNotes, ReviewResult } from './types.js';
@@ -144,6 +145,20 @@ describe('parseReviewResult', () => {
     const result = parseReviewResult(raw, 'sec', 3);
     expect(result!.critical).toBe(0);
     expect(result!.important).toBe(0);
+  });
+});
+
+describe('sanitizeFilename', () => {
+  it('strips ANSI escape sequences from filenames', () => {
+    expect(sanitizeFilename('\x1b[31mmalicious\x1b[0m')).toBe('[31mmalicious[0m');
+  });
+
+  it('strips null bytes and other control characters', () => {
+    expect(sanitizeFilename('review\x00er\x07.md')).toBe('reviewer.md');
+  });
+
+  it('leaves clean filenames unchanged', () => {
+    expect(sanitizeFilename('code-reviewer')).toBe('code-reviewer');
   });
 });
 
