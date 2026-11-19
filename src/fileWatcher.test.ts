@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdirSync, rmSync, writeFileSync, symlinkSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync, symlinkSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -288,5 +288,47 @@ describe('watchProject', () => {
     cleanup();
     // The symlink-traversal worktree should have been skipped entirely
     expect(signals).toHaveLength(0);
+  });
+});
+
+describe('watchProject error propagation', () => {
+  it('does not crash when onError is omitted and watcher fails', () => {
+    const dir = tmpDir();
+    dirs.push(dir);
+    const worktreeDir = join(dir, '.worktrees', '11-err');
+    mkdirSync(worktreeDir, { recursive: true });
+
+    // onError omitted — should not throw
+    const cleanup = watchProject(dir, {
+      onSignal: () => {},
+      onNotes: () => {},
+      onReview: () => {},
+    });
+    cleanup();
+  });
+
+  it('calls onError when watch() throws on an unreadable directory', () => {
+    const dir = tmpDir();
+    dirs.push(dir);
+    const worktreeDir = join(dir, '.worktrees', '12-err');
+    mkdirSync(worktreeDir, { recursive: true });
+
+    // Make the worktree dir unreadable so watch() throws EACCES
+    chmodSync(worktreeDir, 0o000);
+
+    const errors: unknown[] = [];
+    const cleanup = watchProject(dir, {
+      onSignal: () => {},
+      onNotes: () => {},
+      onReview: () => {},
+      onError: (err) => errors.push(err),
+    });
+
+    cleanup();
+    // Restore permissions for cleanup
+    chmodSync(worktreeDir, 0o755);
+
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+    expect((errors[0] as NodeJS.ErrnoException).code).toBe('EACCES');
   });
 });
