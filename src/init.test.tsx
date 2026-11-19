@@ -7,6 +7,29 @@ import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { loadConfig } from './config.js';
 
+// vi.hoisted runs before vi.mock factories, so these are available in the factories
+const { mockExecFileSync, mockExistsSync, realFs } = vi.hoisted(() => {
+  return {
+    mockExecFileSync: vi.fn(),
+    mockExistsSync: vi.fn(),
+    realFs: { existsSync: null as unknown as (p: string | Buffer | URL) => boolean },
+  };
+});
+
+vi.mock('node:child_process', () => ({
+  execFileSync: (...args: unknown[]) => mockExecFileSync(...args),
+}));
+
+vi.mock('node:fs', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  realFs.existsSync = actual.existsSync;
+  mockExistsSync.mockImplementation(actual.existsSync);
+  return {
+    ...actual,
+    existsSync: (...args: Parameters<typeof actual.existsSync>) => mockExistsSync(...args),
+  };
+});
+
 const DELAY = 50;
 const wait = (ms = DELAY) => new Promise(r => setTimeout(r, ms));
 
@@ -28,8 +51,24 @@ function writeExistingConfig(configPath: string, projects = [
   }));
 }
 
+/** Make existsSync return true for specific project paths while keeping real behavior for everything else. */
+function allowProjectPath(...paths: string[]) {
+  mockExistsSync.mockImplementation((p: string | Buffer | URL) => {
+    const s = String(p);
+    if (paths.includes(s)) return true;
+    return realFs.existsSync(p);
+  });
+}
+
+beforeEach(() => {
+  mockExistsSync.mockImplementation((p: string | Buffer | URL) => realFs.existsSync(p));
+  mockExecFileSync.mockReturnValue(Buffer.from(''));
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
+  mockExistsSync.mockReset();
+  mockExecFileSync.mockReset();
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
   dirs.length = 0;
 });
@@ -60,48 +99,38 @@ describe('Init component', () => {
   });
 
   it('walks through all fields and writes config', async () => {
+    allowProjectPath('/tmp/myproject');
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
     const inst = render(<Init configPath={configPath} />);
     await wait();
 
-    // Type project name
     inst.stdin.write('myproject');
     await wait();
     inst.stdin.write('\r');
     await wait();
-
-    // Type prefix
     inst.stdin.write('MP');
     await wait();
     inst.stdin.write('\r');
     await wait();
-
-    // Type path
     inst.stdin.write('/tmp/myproject');
     await wait();
     inst.stdin.write('\r');
     await wait();
-
-    // Type repo
     inst.stdin.write('owner/myproject');
     await wait();
     inst.stdin.write('\r');
     await wait();
-
-    // Type rex session
     inst.stdin.write('myproject-foreman');
     await wait();
     inst.stdin.write('\r');
     await wait();
 
-    // Should ask to add another — say no
     expect(inst.lastFrame()).toContain('Add another');
     inst.stdin.write('n');
     await wait();
 
-    // Should write config and show done
     expect(inst.lastFrame()).toContain('Config saved');
 
     const cfg = loadConfig(configPath);
@@ -113,19 +142,17 @@ describe('Init component', () => {
   });
 
   it('shows validation error for bad prefix and lets user retry', async () => {
+    allowProjectPath('/tmp/test');
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
     const inst = render(<Init configPath={configPath} />);
     await wait();
 
-    // Name
     inst.stdin.write('test');
     await wait();
     inst.stdin.write('\r');
     await wait();
-
-    // Bad prefix (lowercase)
     inst.stdin.write('mp');
     await wait();
     inst.stdin.write('\r');
@@ -133,23 +160,18 @@ describe('Init component', () => {
 
     expect(inst.lastFrame()).toContain('2 uppercase');
 
-    // Correct prefix
     inst.stdin.write('MP');
     await wait();
     inst.stdin.write('\r');
     await wait();
-
-    // Continue with valid data
     inst.stdin.write('/tmp/test');
     await wait();
     inst.stdin.write('\r');
     await wait();
-
     inst.stdin.write('owner/test');
     await wait();
     inst.stdin.write('\r');
     await wait();
-
     inst.stdin.write('test-foreman');
     await wait();
     inst.stdin.write('\r');
@@ -163,13 +185,13 @@ describe('Init component', () => {
   });
 
   it('allows adding multiple projects', async () => {
+    allowProjectPath('/tmp/proj1', '/tmp/proj2');
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
     const inst = render(<Init configPath={configPath} />);
     await wait();
 
-    // First project
     inst.stdin.write('proj1');
     await wait();
     inst.stdin.write('\r');
@@ -191,11 +213,9 @@ describe('Init component', () => {
     inst.stdin.write('\r');
     await wait();
 
-    // Add another — yes
     inst.stdin.write('y');
     await wait();
 
-    // Second project
     inst.stdin.write('proj2');
     await wait();
     inst.stdin.write('\r');
@@ -217,7 +237,6 @@ describe('Init component', () => {
     inst.stdin.write('\r');
     await wait();
 
-    // No more
     inst.stdin.write('n');
     await wait();
 
@@ -263,17 +282,16 @@ describe('Init component', () => {
     const inst = render(<Init configPath={configPath} />);
     await wait();
 
-    // Press 'e' to edit
     inst.stdin.write('e');
     await wait();
 
-    // Should show the form with the first field pre-filled
     expect(inst.lastFrame()).toContain('Editing project: old');
     expect(inst.lastFrame()).toContain('old');
     inst.unmount();
   });
 
   it('edit mode preserves unchanged fields on Enter', async () => {
+    allowProjectPath('/tmp/old');
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
@@ -282,23 +300,20 @@ describe('Init component', () => {
     const inst = render(<Init configPath={configPath} />);
     await wait();
 
-    // Press 'e' to edit
     inst.stdin.write('e');
     await wait();
 
-    // Accept all existing fields by pressing Enter
-    inst.stdin.write('\r'); // name: old
+    inst.stdin.write('\r'); // name
     await wait();
-    inst.stdin.write('\r'); // prefix: OL
+    inst.stdin.write('\r'); // prefix
     await wait();
-    inst.stdin.write('\r'); // path: /tmp/old
+    inst.stdin.write('\r'); // path
     await wait();
-    inst.stdin.write('\r'); // repo: o/old
+    inst.stdin.write('\r'); // repo
     await wait();
-    inst.stdin.write('\r'); // rexSession: old-foreman
+    inst.stdin.write('\r'); // rexSession
     await wait();
 
-    // Should ask to add another — say no
     expect(inst.lastFrame()).toContain('Add another');
     inst.stdin.write('n');
     await wait();
@@ -315,6 +330,7 @@ describe('Init component', () => {
   });
 
   it('edit mode allows modifying individual fields', async () => {
+    allowProjectPath('/tmp/old');
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
@@ -323,13 +339,10 @@ describe('Init component', () => {
     const inst = render(<Init configPath={configPath} />);
     await wait();
 
-    // Press 'e' to edit
     inst.stdin.write('e');
     await wait();
 
-    // Clear the pre-filled name and type a new one
-    // Need to backspace the existing "old" (3 chars) and type "newname"
-    inst.stdin.write('\x7f'); // backspace
+    inst.stdin.write('\x7f');
     await wait();
     inst.stdin.write('\x7f');
     await wait();
@@ -340,14 +353,13 @@ describe('Init component', () => {
     inst.stdin.write('\r');
     await wait();
 
-    // Accept remaining fields
-    inst.stdin.write('\r'); // prefix: OL
+    inst.stdin.write('\r'); // prefix
     await wait();
-    inst.stdin.write('\r'); // path: /tmp/old
+    inst.stdin.write('\r'); // path
     await wait();
-    inst.stdin.write('\r'); // repo: o/old
+    inst.stdin.write('\r'); // repo
     await wait();
-    inst.stdin.write('\r'); // rexSession: old-foreman
+    inst.stdin.write('\r'); // rexSession
     await wait();
 
     expect(inst.lastFrame()).toContain('Add another');
@@ -357,7 +369,6 @@ describe('Init component', () => {
     expect(inst.lastFrame()).toContain('Config saved');
     const cfg = loadConfig(configPath);
     expect(cfg.projects[0]!.name).toBe('newname');
-    // Unchanged fields preserved
     expect(cfg.projects[0]!.prefix).toBe('OL');
     expect(cfg.projects[0]!.path).toBe('/tmp/old');
     expect(cfg.projects[0]!.repo).toBe('o/old');
@@ -366,6 +377,7 @@ describe('Init component', () => {
   });
 
   it('edit mode validates modified fields', async () => {
+    allowProjectPath('/tmp/old');
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
@@ -377,11 +389,9 @@ describe('Init component', () => {
     inst.stdin.write('e');
     await wait();
 
-    // Accept name
-    inst.stdin.write('\r');
+    inst.stdin.write('\r'); // accept name
     await wait();
 
-    // Try to change prefix to invalid value
     inst.stdin.write('\x7f');
     await wait();
     inst.stdin.write('\x7f');
@@ -393,13 +403,11 @@ describe('Init component', () => {
 
     expect(inst.lastFrame()).toContain('2 uppercase');
 
-    // Fix it
     inst.stdin.write('ZZ');
     await wait();
     inst.stdin.write('\r');
     await wait();
 
-    // Accept remaining fields
     inst.stdin.write('\r'); // path
     await wait();
     inst.stdin.write('\r'); // repo
@@ -417,6 +425,7 @@ describe('Init component', () => {
   });
 
   it('edit mode handles multiple existing projects', async () => {
+    allowProjectPath('/tmp/alpha', '/tmp/beta');
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
@@ -431,30 +440,28 @@ describe('Init component', () => {
     inst.stdin.write('e');
     await wait();
 
-    // Accept all fields of first project
     expect(inst.lastFrame()).toContain('Editing project: alpha');
-    inst.stdin.write('\r'); // name
+    inst.stdin.write('\r');
     await wait();
-    inst.stdin.write('\r'); // prefix
+    inst.stdin.write('\r');
     await wait();
-    inst.stdin.write('\r'); // path
+    inst.stdin.write('\r');
     await wait();
-    inst.stdin.write('\r'); // repo
+    inst.stdin.write('\r');
     await wait();
-    inst.stdin.write('\r'); // rexSession
+    inst.stdin.write('\r');
     await wait();
 
-    // Should move to second project
     expect(inst.lastFrame()).toContain('Editing project: beta');
-    inst.stdin.write('\r'); // name
+    inst.stdin.write('\r');
     await wait();
-    inst.stdin.write('\r'); // prefix
+    inst.stdin.write('\r');
     await wait();
-    inst.stdin.write('\r'); // path
+    inst.stdin.write('\r');
     await wait();
-    inst.stdin.write('\r'); // repo
+    inst.stdin.write('\r');
     await wait();
-    inst.stdin.write('\r'); // rexSession
+    inst.stdin.write('\r');
     await wait();
 
     expect(inst.lastFrame()).toContain('Add another');
@@ -555,6 +562,7 @@ describe('Init component', () => {
   });
 
   it('rejects bad repo format at component level', async () => {
+    allowProjectPath('/tmp/test');
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
@@ -590,6 +598,7 @@ describe('Init component', () => {
   });
 
   it('rejects duplicate prefix when adding second project', async () => {
+    allowProjectPath('/tmp/proj1');
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
@@ -635,7 +644,9 @@ describe('Init component', () => {
     expect(inst.lastFrame()).toContain('already in use');
     inst.unmount();
   });
+
   it('edit mode preserves pollIntervalSeconds and theme from existing config', async () => {
+    allowProjectPath('/tmp/proj');
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
@@ -679,6 +690,7 @@ describe('Init component', () => {
   });
 
   it('overwrite mode writes fresh defaults without loaded config', async () => {
+    allowProjectPath('/tmp/fresh');
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
@@ -727,5 +739,209 @@ describe('Init component', () => {
     expect(cfg.github.pollIntervalSeconds).toBe(60);
     expect(cfg.theme).toBeUndefined();
     inst.unmount();
+  });
+
+
+  describe('runtime validation', () => {
+    it('shows error when path does not exist on disk', async () => {
+      const { Init } = await importInit();
+      const dir = tmpDir();
+      const configPath = join(dir, 'config.json');
+      const inst = render(<Init configPath={configPath} />);
+      await wait();
+
+      inst.stdin.write('myproject');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('MP');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('/nonexistent/path/to/project');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('owner/myproject');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('myproject-foreman');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+
+      expect(inst.lastFrame()).toContain('Path does not exist');
+      expect(inst.lastFrame()).toContain('/nonexistent/path/to/project');
+      expect(inst.lastFrame()).toContain('Press Enter to correct');
+      inst.unmount();
+    });
+
+    it('shows error when gh repo view fails', async () => {
+      allowProjectPath('/tmp/myproject');
+      mockExecFileSync.mockImplementation(() => { throw new Error('not found'); });
+
+      const { Init } = await importInit();
+      const dir = tmpDir();
+      const configPath = join(dir, 'config.json');
+      const inst = render(<Init configPath={configPath} />);
+      await wait();
+
+      inst.stdin.write('myproject');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('MP');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('/tmp/myproject');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('owner/myproject');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('myproject-foreman');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+
+      expect(inst.lastFrame()).toContain('Repository not accessible');
+      expect(inst.lastFrame()).toContain('owner/myproject');
+      expect(inst.lastFrame()).toContain('Press Enter to correct');
+      inst.unmount();
+    });
+
+    it('lets user correct path after validation failure', async () => {
+      const realProjectPath = tmpDir();
+
+      const { Init } = await importInit();
+      const dir = tmpDir();
+      const configPath = join(dir, 'config.json');
+      const inst = render(<Init configPath={configPath} />);
+      await wait();
+
+      inst.stdin.write('myproject');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('MP');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('/fake/path');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('owner/myproject');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('myproject-foreman');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+
+      expect(inst.lastFrame()).toContain('Path does not exist');
+
+      inst.stdin.write('\r');
+      await wait();
+
+      expect(inst.lastFrame()).toContain('Local path');
+
+      for (let i = 0; i < '/fake/path'.length; i++) {
+        inst.stdin.write('\x7f');
+        await wait();
+      }
+      inst.stdin.write(realProjectPath);
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+
+      inst.stdin.write('owner/myproject');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('myproject-foreman');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+
+      expect(inst.lastFrame()).toContain('Add another');
+      inst.stdin.write('n');
+      await wait();
+
+      expect(inst.lastFrame()).toContain('Config saved');
+      const cfg = loadConfig(configPath);
+      expect(cfg.projects[0]!.path).toBe(realProjectPath);
+      inst.unmount();
+    });
+
+    it('lets user correct repo after gh validation failure', async () => {
+      allowProjectPath('/tmp/myproject');
+      let callCount = 0;
+      mockExecFileSync.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) throw new Error('not found');
+        return Buffer.from('');
+      });
+
+      const { Init } = await importInit();
+      const dir = tmpDir();
+      const configPath = join(dir, 'config.json');
+      const inst = render(<Init configPath={configPath} />);
+      await wait();
+
+      inst.stdin.write('myproject');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('MP');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('/tmp/myproject');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('bad/repo');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+      inst.stdin.write('myproject-foreman');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+
+      expect(inst.lastFrame()).toContain('Repository not accessible');
+
+      inst.stdin.write('\r');
+      await wait();
+
+      expect(inst.lastFrame()).toContain('GitHub repo');
+
+      for (let i = 0; i < 'bad/repo'.length; i++) {
+        inst.stdin.write('\x7f');
+        await wait();
+      }
+      inst.stdin.write('owner/myproject');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+
+      inst.stdin.write('myproject-foreman');
+      await wait();
+      inst.stdin.write('\r');
+      await wait();
+
+      expect(inst.lastFrame()).toContain('Add another');
+      inst.stdin.write('n');
+      await wait();
+
+      expect(inst.lastFrame()).toContain('Config saved');
+      inst.unmount();
+    });
   });
 });
