@@ -44,6 +44,7 @@ export function MouseProvider({ children }: { children: React.ReactNode }) {
     if (!stdin) return;
     const onData = (data: Buffer) => {
       // A chunk can batch several sequences; split at each ESC so none are dropped
+      // shortcut: a sequence fragmented across two chunks is still dropped, buffer if SSH fragmentation shows up
       for (const part of data.toString('utf-8').split(/(?=\x1b)/)) {
         const evt = parseSgrMouse(part);
         // Only dispatch press events to avoid double-firing

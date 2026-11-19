@@ -24,10 +24,14 @@ describe('Clickable', () => {
     unmount();
   });
 
-  it('ignores clicks outside its bounds and non-left buttons', async () => {
+  it.each([
+    ['outside x', '\x1b[<0;200;1M'],
+    ['outside y', '\x1b[<0;2;5M'],
+    ['right button', '\x1b[<2;2;1M'],
+  ])('ignores a click: %s', async (_name, seq) => {
     const { count, stdin, unmount } = setup();
     await wait();
-    stdin.write('\x1b[<0;200;1M\x1b[<0;2;5M\x1b[<2;2;1M');
+    stdin.write(seq);
     await wait();
     expect(count()).toBe(0);
     unmount();

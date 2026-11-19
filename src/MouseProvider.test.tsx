@@ -45,6 +45,15 @@ describe('MouseProvider click dispatch', () => {
     expect(clicks.map(c => [c.x, c.y])).toEqual([[1, 2], [3, 4]]);
     unmount();
   });
+
+  it('skips non-mouse escape sequences mixed into a batch', async () => {
+    const { clicks, stdin, unmount } = setup();
+    await wait();
+    stdin.write('\x1b[<0;1;2M\x1b[A\x1b[<0;3;4M');
+    await wait();
+    expect(clicks.map(c => [c.x, c.y])).toEqual([[1, 2], [3, 4]]);
+    unmount();
+  });
 });
 
 describe('disableMouseTracking', () => {
