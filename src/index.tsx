@@ -110,7 +110,8 @@ if (!command || command === 'start') {
   }
   // Alternate screen pins Ink's output to row 1 for mouse hit-testing; must precede the first frame
   const altScreen = process.stdout.isTTY;
-  // Fallback for paths where React cleanup never runs (crash, process.exit). shortcut: a bare external SIGTERM/SIGHUP skips 'exit'; add signal handlers if that bites
+  // Fallback for paths where React cleanup never runs (crash, process.exit)
+  // shortcut: a bare external SIGTERM/SIGHUP skips 'exit'; add signal handlers if that bites
   let restored = false;
   const restoreTerminal = () => {
     if (!altScreen || restored) return;
