@@ -31,18 +31,20 @@ export function Init({ configPath }: Props) {
   const [error, setError] = useState('');
   const [existingChoice, setExistingChoice] = useState('');
   const [editIndex, setEditIndex] = useState(-1);
+  const [loadedConfig, setLoadedConfig] = useState<Config | null>(null);
 
   const currentField = FIELDS[fieldIndex];
 
   const finishSetup = useCallback((finalProjects: ProjectConfig[]) => {
     const config: Config = {
+      ...loadedConfig,
       projects: finalProjects,
-      github: { pollIntervalSeconds: 60 },
+      github: loadedConfig?.github ?? { pollIntervalSeconds: 60 },
     };
     saveConfig(config, configPath);
     setPhase('done');
     setTimeout(() => exit(), 100);
-  }, [configPath, exit]);
+  }, [configPath, exit, loadedConfig]);
 
   const prefillField = useCallback((project: ProjectConfig, fIdx: number) => {
     const field = FIELDS[fIdx];
@@ -154,6 +156,7 @@ export function Init({ configPath }: Props) {
       } else if (ch === 'e' || ch === 'E') {
         try {
           const existing = loadConfig(configPath);
+          setLoadedConfig(existing);
           setExistingChoice('edit');
           setProjects(existing.projects);
           startEditProject(existing.projects[0]!, 0);
