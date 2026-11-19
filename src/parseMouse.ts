@@ -22,19 +22,22 @@ export function parseSgrMouse(data: string): MouseEvent | null {
   const y = Number(m[3]);
   const suffix = m[4]; // 'M' = press, 'm' = release
 
-  // Scroll events (btn 64 = scroll up, 65 = scroll down)
-  if (btn === 64) return { x, y, button: null, type: 'scroll-up' };
-  if (btn === 65) return { x, y, button: null, type: 'scroll-down' };
+  // Low 2 bits = button; Shift (4), Meta (8), Ctrl (16) are additive flags
+  const base = btn & 0x03;
 
-  // Motion events (btn >= 32 and < 64)
-  if (btn >= 32 && btn < 64) {
-    const base = btn - 32;
-    const button: MouseButton = base === 0 ? 'left' : base === 1 ? 'middle' : base === 2 ? 'right' : null;
-    return { x, y, button, type: 'move' };
+  // Scroll events (bit 64: base 0 = scroll up, 1 = scroll down)
+  if (btn & 0x40) {
+    if (base === 0) return { x, y, button: null, type: 'scroll-up' };
+    if (base === 1) return { x, y, button: null, type: 'scroll-down' };
+    return { x, y, button: null, type: null };
   }
 
+  const button: MouseButton = base === 0 ? 'left' : base === 1 ? 'middle' : base === 2 ? 'right' : null;
+
+  // Motion events (bit 32)
+  if (btn & 0x20) return { x, y, button, type: 'move' };
+
   // Regular button events
-  const button: MouseButton = btn === 0 ? 'left' : btn === 1 ? 'middle' : btn === 2 ? 'right' : null;
   const type: MouseEventType = suffix === 'M' ? 'press' : 'release';
 
   return { x, y, button, type };

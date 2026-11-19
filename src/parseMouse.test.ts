@@ -45,6 +45,36 @@ describe('parseSgrMouse', () => {
     expect(result).toEqual({ x: 300, y: 250, button: 'left', type: 'press' });
   });
 
+  it.each([
+    ['shift', 4],
+    ['meta', 8],
+    ['ctrl', 16],
+    ['shift+ctrl', 20],
+  ])('parses %s+left click press and release', (_name, mod) => {
+    expect(parseSgrMouse(`\x1b[<${mod};10;5M`)).toEqual({ x: 10, y: 5, button: 'left', type: 'press' });
+    expect(parseSgrMouse(`\x1b[<${mod};10;5m`)).toEqual({ x: 10, y: 5, button: 'left', type: 'release' });
+  });
+
+  it('parses modified middle and right clicks', () => {
+    expect(parseSgrMouse('\x1b[<5;3;7M')).toEqual({ x: 3, y: 7, button: 'middle', type: 'press' });
+    expect(parseSgrMouse('\x1b[<18;1;1M')).toEqual({ x: 1, y: 1, button: 'right', type: 'press' });
+  });
+
+  it('parses modified scroll', () => {
+    // ctrl+scroll up = 64+16, shift+scroll down = 65+4
+    expect(parseSgrMouse('\x1b[<80;5;10M')).toEqual({ x: 5, y: 10, button: null, type: 'scroll-up' });
+    expect(parseSgrMouse('\x1b[<69;5;10M')).toEqual({ x: 5, y: 10, button: null, type: 'scroll-down' });
+  });
+
+  it('parses modified motion', () => {
+    // shift + motion + left held = 4 + 32
+    expect(parseSgrMouse('\x1b[<36;20;15M')).toEqual({ x: 20, y: 15, button: 'left', type: 'move' });
+  });
+
+  it('returns no button for horizontal scroll codes', () => {
+    expect(parseSgrMouse('\x1b[<66;5;10M')?.button).toBeNull();
+  });
+
   it('returns null for non-mouse data', () => {
     expect(parseSgrMouse('hello')).toBeNull();
     expect(parseSgrMouse('\x1b[A')).toBeNull(); // arrow key
