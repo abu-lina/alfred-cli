@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -242,5 +242,36 @@ describe('watchProject', () => {
     // should not throw
     cleanup();
     cleanup(); // idempotent
+  });
+
+  it('rejects symlinks that resolve outside the project root', async () => {
+    const dir = tmpDir();
+    const outsideDir = tmpDir();
+    dirs.push(dir, outsideDir);
+
+    const worktreesDir = join(dir, '.worktrees');
+    mkdirSync(worktreesDir, { recursive: true });
+
+    // Create a symlink inside .worktrees/ pointing outside the project
+    symlinkSync(outsideDir, join(worktreesDir, '99-escape'));
+
+    // Write a signal file in the outside directory
+    writeFileSync(
+      join(outsideDir, '.lane-signal'),
+      JSON.stringify({ type: 'block', issue: 99, message: 'escaped', timestamp: Date.now() }),
+    );
+
+    const signals: LaneSignal[] = [];
+    const cleanup = watchProject(dir, {
+      onSignal: (s) => signals.push(s),
+      onNotes: () => {},
+      onReview: () => {},
+    });
+
+    await new Promise(r => setTimeout(r, 500));
+
+    cleanup();
+    // The symlink-traversal worktree should have been skipped entirely
+    expect(signals).toHaveLength(0);
   });
 });

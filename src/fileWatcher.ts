@@ -1,4 +1,4 @@
-import { watch, readFileSync, readdirSync, existsSync, type FSWatcher } from 'node:fs';
+import { watch, readFileSync, readdirSync, existsSync, realpathSync, type FSWatcher } from 'node:fs';
 import { join, basename } from 'node:path';
 import type { LaneSignal, LaneNotes, ReviewResult } from './types.js';
 
@@ -93,8 +93,20 @@ export function watchProject(projectPath: string, callbacks: WatchCallbacks): ()
 
   if (!existsSync(worktreesDir)) return () => {};
 
+  const realRoot = realpathSync(projectPath);
+
   const scanWorktree = (wtDir: string) => {
     if (watchedDirs.has(wtDir)) return;
+
+    // Resolve symlinks and reject paths outside the project root
+    let realWtDir: string;
+    try {
+      realWtDir = realpathSync(wtDir);
+    } catch {
+      return; // broken symlink or inaccessible
+    }
+    if (!realWtDir.startsWith(realRoot + '/') && realWtDir !== realRoot) return;
+
     watchedDirs.add(wtDir);
     const issue = issueFromDirName(basename(wtDir));
 
