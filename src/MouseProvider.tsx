@@ -43,13 +43,14 @@ export function MouseProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!stdin) return;
     const onData = (data: Buffer) => {
-      const str = data.toString('utf-8');
-      const evt = parseSgrMouse(str);
-      if (!evt) return;
-      // Only dispatch press events to avoid double-firing
-      if (evt.type !== 'press') return;
-      for (const handler of handlersRef.current) {
-        handler(evt);
+      // A chunk can batch several sequences; split at each ESC so none are dropped
+      for (const part of data.toString('utf-8').split(/(?=\x1b)/)) {
+        const evt = parseSgrMouse(part);
+        // Only dispatch press events to avoid double-firing
+        if (evt?.type !== 'press') continue;
+        for (const handler of handlersRef.current) {
+          handler(evt);
+        }
       }
     };
     stdin.on('data', onData);

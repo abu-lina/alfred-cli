@@ -2,7 +2,8 @@ import React from 'react';
 import { Text } from 'ink';
 import { render } from 'ink-testing-library';
 import { describe, it, expect } from 'vitest';
-import { MouseProvider, disableMouseTracking } from './MouseProvider.js';
+import type { MouseEvent } from './parseMouse.js';
+import { MouseProvider, disableMouseTracking, useMouseClick } from './MouseProvider.js';
 import { wait } from './testUtils.js';
 
 const written = (frames: string[]) => frames.join('');
@@ -13,6 +14,35 @@ describe('MouseProvider', () => {
     await wait();
     expect(written(frames)).toContain('\x1b[?1000h');
     expect(written(frames)).toContain('\x1b[?1006h');
+    unmount();
+  });
+});
+
+describe('MouseProvider click dispatch', () => {
+  // Seam: bytes on stdin -> handlers registered via useMouseClick
+  const setup = () => {
+    const clicks: MouseEvent[] = [];
+    const handler = (e: MouseEvent) => { clicks.push(e); };
+    const Probe = () => { useMouseClick(handler); return <Text>probe</Text>; };
+    const r = render(<MouseProvider><Probe /></MouseProvider>);
+    return { clicks, ...r };
+  };
+
+  it('dispatches a single press', async () => {
+    const { clicks, stdin, unmount } = setup();
+    await wait();
+    stdin.write('\x1b[<0;5;7M');
+    await wait();
+    expect(clicks).toEqual([{ x: 5, y: 7, button: 'left', type: 'press' }]);
+    unmount();
+  });
+
+  it('dispatches every press when several sequences arrive in one chunk', async () => {
+    const { clicks, stdin, unmount } = setup();
+    await wait();
+    stdin.write('\x1b[<0;1;2M\x1b[<0;1;2m\x1b[<0;3;4M');
+    await wait();
+    expect(clicks.map(c => [c.x, c.y])).toEqual([[1, 2], [3, 4]]);
     unmount();
   });
 });
