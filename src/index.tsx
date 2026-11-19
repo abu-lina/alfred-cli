@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import {render, Text, Box} from 'ink';
+import {render, Text, Box, useStdout} from 'ink';
 import React, { useState, useEffect } from 'react';
 import { existsSync } from 'node:fs';
 import meow from 'meow';
@@ -38,6 +38,14 @@ function App({ config }: { config: import('./config.js').Config }) {
   const [state, setState] = useState<RefreshState>(emptyRefreshState());
   const [standupData, setStandupData] = useState<StandupData | null>(null);
   const nav = useNavigation();
+  const { stdout } = useStdout();
+  const [rows, setRows] = useState(stdout.rows);
+
+  useEffect(() => {
+    const onResize = () => setRows(stdout.rows);
+    stdout.on('resize', onResize);
+    return () => { stdout.off('resize', onResize); };
+  }, [stdout]);
 
   useEffect(() => {
     const mgr = createRefreshManager(config, setState);
@@ -63,7 +71,10 @@ function App({ config }: { config: import('./config.js').Config }) {
 
   return (
     <MouseProvider>
-    <Box flexDirection="column">
+    {/* Clip to rows - 1 so the header never scrolls off row 1 (Clickable assumes it's there); Ink appends a trailing newline */}
+    <Box flexDirection="column" height={rows ? rows - 1 : undefined} overflow="hidden">
+    {/* flexShrink 0: otherwise Yoga squeezes children to fit the clip and their text overlaps */}
+    <Box flexDirection="column" flexShrink={0}>
       <HeaderBar view={nav.view} canGoBack={nav.canGoBack} onBack={nav.back} onNavigateTo={nav.navigateTo} projectCount={config.projects.length} />
       {nav.view.type === 'inbox' && (
         <InboxView items={inboxItems} onSelect={(item) => nav.push({ type: 'tasks', repo: item.repo, issue: item.issue })} />
@@ -77,6 +88,7 @@ function App({ config }: { config: import('./config.js').Config }) {
       {tasksRoute && (
         <TasksView repo={tasksRoute.repo} issue={tasksRoute.issue} reviews={tasksReviews} notes={tasksNotes} />
       )}
+    </Box>
     </Box>
     </MouseProvider>
   );
@@ -96,6 +108,9 @@ if (!command || command === 'start') {
     console.error(e instanceof Error ? e.message : String(e));
     process.exit(1);
   }
+  // Alternate screen pins Ink's output to row 1 for mouse hit-testing; must precede the first frame
+  process.stdout.write('\x1b[?1049h\x1b[H');
+  process.on('exit', () => process.stdout.write('\x1b[?1049l'));
   render(<App config={config} />);
 } else if (command === 'init') {
   render(<Init configPath={DEFAULT_CONFIG_PATH} />);
