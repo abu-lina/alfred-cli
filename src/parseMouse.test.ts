@@ -75,6 +75,23 @@ describe('parseSgrMouse', () => {
     expect(parseSgrMouse('\x1b[<66;5;10M')).toEqual({ x: 5, y: 10, button: null, type: 'press' });
   });
 
+  it.each([128, 129, 130])('gives no button for back/forward codes (bit 0x80), code %i', (code) => {
+    expect(parseSgrMouse(`\x1b[<${code};5;10M`)).toEqual({ x: 5, y: 10, button: null, type: 'press' });
+  });
+
+  it('does not treat scroll+motion (96) as a click or move', () => {
+    const e = parseSgrMouse('\x1b[<96;5;10M');
+    expect(e?.button).toBeNull();
+    expect(e?.type).not.toBe('move');
+    expect(e?.type).not.toBe('press');
+  });
+
+  it('rejects numbers too large to be real codes or coordinates', () => {
+    // 4294967296 wraps to 0 (left) in 32-bit bitwise ops
+    expect(parseSgrMouse('\x1b[<4294967296;5;10M')).toBeNull();
+    expect(parseSgrMouse('\x1b[<0;99999;10M')).toBeNull();
+  });
+
   it('returns null for non-mouse data', () => {
     expect(parseSgrMouse('hello')).toBeNull();
     expect(parseSgrMouse('\x1b[A')).toBeNull(); // arrow key
