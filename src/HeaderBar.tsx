@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, Box, useInput } from 'ink';
 import type { Route } from './useNavigation.js';
+import { Clickable } from './Clickable.js';
 
 interface Props {
   view: Route;
@@ -21,11 +22,17 @@ export function HeaderBar({ view, canGoBack, onBack, onNavigateTo, projectCount 
   return (
     <Box>
       <Text bold color="cyan">Alfred — </Text>
-      <Text bold color={view.type === 'inbox' ? 'cyan' : 'gray'} underline={view.type === 'inbox'}>Inbox</Text>
+      <Clickable onClick={() => onNavigateTo({ type: 'inbox' })}>
+        <Text bold color={view.type === 'inbox' ? 'cyan' : 'gray'} underline={view.type === 'inbox'}>Inbox</Text>
+      </Clickable>
       <Text> </Text>
-      <Text bold color={view.type === 'board' ? 'cyan' : 'gray'} underline={view.type === 'board'}>Board</Text>
+      <Clickable onClick={() => onNavigateTo({ type: 'board' })}>
+        <Text bold color={view.type === 'board' ? 'cyan' : 'gray'} underline={view.type === 'board'}>Board</Text>
+      </Clickable>
       <Text> </Text>
-      <Text bold color={view.type === 'standup' ? 'cyan' : 'gray'} underline={view.type === 'standup'}>Standup</Text>
+      <Clickable onClick={() => onNavigateTo({ type: 'standup' })}>
+        <Text bold color={view.type === 'standup' ? 'cyan' : 'gray'} underline={view.type === 'standup'}>Standup</Text>
+      </Clickable>
       {view.type === 'tasks' && (
         <>
           <Text bold color="cyan"> — </Text>

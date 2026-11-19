@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Text, Box, useInput } from 'ink';
 import type { InboxItem, InboxReason } from './inbox.js';
 import { formatAge } from './format.js';
+import { Clickable } from './Clickable.js';
 
 interface Props {
   items: InboxItem[];
@@ -44,7 +45,7 @@ export function InboxView({ items, onSelect }: Props) {
   return (
     <Box flexDirection="column" paddingLeft={1}>
       {items.map((item, i) => (
-        <Box key={`${item.repo}-${item.issue}-${item.reason}`}>
+        <Clickable key={`${item.repo}-${item.issue}-${item.reason}`} onClick={() => onSelect(item)}>
           <Text>
             <Text>{clamped === i ? '▸' : ' '}</Text>
             <Text bold color={REASON_COLORS[item.reason] ?? 'white'}>{item.prefix}</Text>
@@ -54,7 +55,7 @@ export function InboxView({ items, onSelect }: Props) {
             <Text>  {item.title}</Text>
             {item.detail ? <Text dimColor>  ({item.detail})</Text> : null}
           </Text>
-        </Box>
+        </Clickable>
       ))}
     </Box>
   );
