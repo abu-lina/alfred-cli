@@ -24,7 +24,6 @@ const cli = meow(`
 
   Commands
     start    Launch the dashboard TUI (default)
-    board    Show the Kanban board view
     init     Interactive project setup
     status   One-shot status output
 
@@ -82,7 +81,7 @@ function App({ config }: { config: import('./config.js').Config }) {
 
 const command = cli.input[0];
 
-if (!command || command === 'start' || command === 'board') {
+if (!command || command === 'start') {
   if (!existsSync(DEFAULT_CONFIG_PATH)) {
     console.error("Run 'alf init' first");
     process.exit(1);
