@@ -34,6 +34,7 @@ function Card({ card, focused, onSelect }: { card: BoardCard; focused: boolean; 
               <Text bold color={COLUMN_COLORS[card.column]}>{card.prefix}</Text>
               <Text dimColor> #{card.issue}</Text>
               <Text dimColor> {formatAge(card.since)}</Text>
+              <Text dimColor> [{card.tier}]</Text>
             </Text>
             <Text wrap="truncate">  {card.title}</Text>
           </Box>

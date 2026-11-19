@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyCards, type BoardCard } from './board.js';
+import { classifyCards, tierFromLabels, type BoardCard } from './board.js';
 import type { RefreshState, GitHubState, FileWatchState, ReviewResult } from './types.js';
 import type { ProjectConfig } from './config.js';
 
@@ -157,4 +157,43 @@ describe('classifyCards', () => {
     expect(cols.todo).toHaveLength(2);
     expect(cols.todo.map(c => c.prefix).sort()).toEqual(['OT', 'TP']);
   });
+
+  it('extracts tier from tier: label on PR', () => {
+    const state = makeState({
+      prs: [{ number: 1, title: 'feat: thing', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/5-thing', labels: ['tier:strong'], reviewDecision: '', checksStatus: 'pass', createdAt: Date.now() }],
+    });
+    const cols = classifyCards([PROJECT], state);
+    expect(cols.inProgress[0]!.tier).toBe('strong');
+  });
+
+  it('defaults tier to — when no tier label', () => {
+    const state = makeState({
+      prs: [{ number: 1, title: 'feat: thing', state: 'OPEN', isDraft: true, url: '', headRefName: 'feat/5-thing', labels: ['type:feat'], reviewDecision: '', checksStatus: 'pass', createdAt: Date.now() }],
+    });
+    const cols = classifyCards([PROJECT], state);
+    expect(cols.inProgress[0]!.tier).toBe('\u2014');
+  });
+
+  it('extracts tier from issue labels for todo cards', () => {
+    const state = makeState({
+      issues: [{ number: 10, title: 'New feature', labels: ['ready', 'tier:cheap'], createdAt: Date.now() }],
+    });
+    const cols = classifyCards([PROJECT], state);
+    expect(cols.todo[0]!.tier).toBe('cheap');
+  });
+});
+
+describe('tierFromLabels', () => {
+  it('returns the tier value from a tier: label', () => {
+    expect(tierFromLabels(['area:auth', 'tier:strong'])).toBe('strong');
+  });
+
+  it('returns — when no tier label present', () => {
+    expect(tierFromLabels(['ready', 'type:feat'])).toBe('\u2014');
+  });
+
+  it('returns first tier label if multiple exist', () => {
+    expect(tierFromLabels(['tier:cheap', 'tier:strong'])).toBe('cheap');
+  });
+
 });

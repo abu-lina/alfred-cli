@@ -8,6 +8,7 @@ export interface BoardCard {
   repo: string;
   column: 'needsYou' | 'inProgress' | 'inReview' | 'todo';
   since: number;
+  tier: string;
 }
 
 export interface BoardColumns {
@@ -24,6 +25,13 @@ function issueFromBranch(branch: string): number {
   return m ? parseInt(m[1]!, 10) : 0;
 }
 
+
+export function tierFromLabels(labels: string[]): string {
+  for (const l of labels) {
+    if (l.startsWith('tier:')) return l.slice(5);
+  }
+  return '—';
+}
 export function classifyCards(projects: ProjectConfig[], state: RefreshState): BoardColumns {
   const cols: BoardColumns = { needsYou: [], inProgress: [], inReview: [], todo: [] };
 
@@ -64,6 +72,7 @@ export function classifyCards(projects: ProjectConfig[], state: RefreshState): B
         repo: project.repo,
         column: 'inProgress',
         since: pr.createdAt,
+        tier: tierFromLabels(pr.labels),
       };
 
       if (signal?.type === 'block' || signal?.type === 'handoff') {
@@ -88,6 +97,7 @@ export function classifyCards(projects: ProjectConfig[], state: RefreshState): B
         repo: project.repo,
         column: 'todo',
         since: issue.createdAt,
+        tier: tierFromLabels(issue.labels),
       });
     }
   }
