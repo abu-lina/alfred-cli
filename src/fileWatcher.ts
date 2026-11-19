@@ -9,6 +9,12 @@ export function sanitizeFilename(name: string): string {
   return name.replace(/[\x00-\x1f\x7f]/g, '');
 }
 
+/** Strip ANSI escape sequences and control characters from content before TUI rendering. */
+export function sanitizeContent(text: string): string {
+  // Strip ANSI escape sequences first, then remaining control chars (keep \n and \t)
+  return text.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
+}
+
 export function parseLaneSignal(raw: string): LaneSignal | null {
   try {
     const obj = JSON.parse(raw);
