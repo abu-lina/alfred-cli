@@ -102,7 +102,6 @@ export function Init({ configPath }: Props) {
     try {
       execFileSync('gh', ['repo', 'view', pendingProject.repo], {
         stdio: 'ignore',
-        env: { ...process.env, GH_HOST: '' },
       });
     } catch {
       setError(`Repository not accessible: ${pendingProject.repo}`);
