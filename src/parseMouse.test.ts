@@ -72,7 +72,7 @@ describe('parseSgrMouse', () => {
   });
 
   it('returns no button for horizontal scroll codes', () => {
-    expect(parseSgrMouse('\x1b[<66;5;10M')?.button).toBeNull();
+    expect(parseSgrMouse('\x1b[<66;5;10M')).toEqual({ x: 5, y: 10, button: null, type: 'press' });
   });
 
   it('returns null for non-mouse data', () => {
