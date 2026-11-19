@@ -1,6 +1,5 @@
 import React from 'react';
 import { Text, Box, useInput } from 'ink';
-import { Clickable, Hoverable } from 'ink-use-mouse';
 import type { Route } from './useNavigation.js';
 
 interface Props {
@@ -19,29 +18,11 @@ export function HeaderBar({ view, canGoBack, onBack, onNavigateTo, projectCount 
   return (
     <Box>
       <Text bold color="cyan">Alfred — </Text>
-      <Clickable onClick={() => onNavigateTo({ type: 'inbox' })}>
-        <Hoverable>
-          {(hovered) => (
-            <Text bold color={view.type === 'inbox' ? 'cyan' : hovered ? 'white' : 'gray'} underline={view.type === 'inbox' || hovered}>Inbox</Text>
-          )}
-        </Hoverable>
-      </Clickable>
+      <Text bold color={view.type === 'inbox' ? 'cyan' : 'gray'} underline={view.type === 'inbox'}>Inbox</Text>
       <Text> </Text>
-      <Clickable onClick={() => onNavigateTo({ type: 'board' })}>
-        <Hoverable>
-          {(hovered) => (
-            <Text bold color={view.type === 'board' ? 'cyan' : hovered ? 'white' : 'gray'} underline={view.type === 'board' || hovered}>Board</Text>
-          )}
-        </Hoverable>
-      </Clickable>
+      <Text bold color={view.type === 'board' ? 'cyan' : 'gray'} underline={view.type === 'board'}>Board</Text>
       <Text> </Text>
-      <Clickable onClick={() => onNavigateTo({ type: 'standup' })}>
-        <Hoverable>
-          {(hovered) => (
-            <Text bold color={view.type === 'standup' ? 'cyan' : hovered ? 'white' : 'gray'} underline={view.type === 'standup' || hovered}>Standup</Text>
-          )}
-        </Hoverable>
-      </Clickable>
+      <Text bold color={view.type === 'standup' ? 'cyan' : 'gray'} underline={view.type === 'standup'}>Standup</Text>
       {view.type === 'tasks' && (
         <>
           <Text bold color="cyan"> — </Text>
@@ -50,13 +31,7 @@ export function HeaderBar({ view, canGoBack, onBack, onNavigateTo, projectCount 
       )}
       <Text dimColor> ({projectCount} projects)</Text>
       {canGoBack && (
-        <Clickable onClick={onBack}>
-          <Hoverable>
-            {(hovered) => (
-              <Text dimColor={!hovered} color={hovered ? 'white' : undefined}>  [Esc] Back</Text>
-            )}
-          </Hoverable>
-        </Clickable>
+        <Text dimColor>  [Esc] Back</Text>
       )}
     </Box>
   );

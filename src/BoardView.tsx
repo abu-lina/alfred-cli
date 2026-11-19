@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Text, Box, useInput } from 'ink';
-import { Clickable, Hoverable } from 'ink-use-mouse';
 import type { BoardColumns, BoardCard } from './board.js';
 import { formatAge } from './format.js';
 
@@ -23,24 +22,18 @@ const COLUMN_LABELS: Record<BoardCard['column'], string> = {
   todo: 'Todo',
 };
 
-function Card({ card, focused, onSelect }: { card: BoardCard; focused: boolean; onSelect: () => void }) {
+function Card({ card, focused }: { card: BoardCard; focused: boolean }) {
   return (
-    <Clickable onClick={onSelect}>
-      <Hoverable>
-        {(hovered) => (
-          <Box flexDirection="column" paddingLeft={1}>
-            <Text>
-              <Text>{focused ? '▸' : hovered ? '›' : ' '}</Text>
-              <Text bold color={COLUMN_COLORS[card.column]}>{card.prefix}</Text>
-              <Text dimColor> #{card.issue}</Text>
-              <Text dimColor> {formatAge(card.since)}</Text>
-              <Text dimColor> [{card.tier}]</Text>
-            </Text>
-            <Text wrap="truncate">  {card.title}</Text>
-          </Box>
-        )}
-      </Hoverable>
-    </Clickable>
+    <Box flexDirection="column" paddingLeft={1}>
+      <Text>
+        <Text>{focused ? '▸' : ' '}</Text>
+        <Text bold color={COLUMN_COLORS[card.column]}>{card.prefix}</Text>
+        <Text dimColor> #{card.issue}</Text>
+        <Text dimColor> {formatAge(card.since)}</Text>
+        <Text dimColor> [{card.tier}]</Text>
+      </Text>
+      <Text wrap="truncate">  {card.title}</Text>
+    </Box>
   );
 }
 
@@ -52,7 +45,7 @@ function Column({ name, cards, focusIndex, offset, onSelect }: { name: BoardCard
         <Text dimColor> ({cards.length})</Text>
       </Box>
       {cards.map((c, i) => (
-        <Card key={`${c.repo}-${c.issue}`} card={c} focused={focusIndex === offset + i} onSelect={() => onSelect(c)} />
+        <Card key={`${c.repo}-${c.issue}`} card={c} focused={focusIndex === offset + i} />
       ))}
     </Box>
   );

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Text, Box, useInput } from 'ink';
-import { Clickable, Hoverable } from 'ink-use-mouse';
 import { parseLaneNotesSections, sanitizeContent } from './fileWatcher.js';
 import type { ReviewResult, LaneNotes } from './types.js';
 
@@ -46,18 +45,12 @@ export function TasksView({ repo, issue, reviews, notes }: Props) {
           <Text bold underline>Reviews</Text>
           {reviews.map((r, i) => (
             <Box key={r.reviewer} flexDirection="column">
-              <Clickable onClick={() => setExpandedIndex(prev => (prev === i ? null : i))}>
-                <Hoverable>
-                  {(hovered) => (
-                    <Text>
-                      <Text>{clamped === i ? '▸' : hovered ? '›' : ' '}</Text>
-                      <Text bold> {r.reviewer}</Text>
-                      <Text color={verdictColor(r.verdict)}> {r.verdict}</Text>
-                      <Text dimColor>  C:{r.critical} I:{r.important}</Text>
-                    </Text>
-                  )}
-                </Hoverable>
-              </Clickable>
+              <Text>
+                <Text>{clamped === i ? '▸' : ' '}</Text>
+                <Text bold> {r.reviewer}</Text>
+                <Text color={verdictColor(r.verdict)}> {r.verdict}</Text>
+                <Text dimColor>  C:{r.critical} I:{r.important}</Text>
+              </Text>
               {expandedIndex === i && (
                 <Box paddingLeft={2} flexDirection="column">
                   <Text>{sanitizeContent(r.raw)}</Text>

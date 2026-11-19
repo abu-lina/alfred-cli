@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Text, Box, useInput } from 'ink';
-import { Clickable, Hoverable } from 'ink-use-mouse';
 import type { InboxItem, InboxReason } from './inbox.js';
 import { formatAge } from './format.js';
 
@@ -45,23 +44,17 @@ export function InboxView({ items, onSelect }: Props) {
   return (
     <Box flexDirection="column" paddingLeft={1}>
       {items.map((item, i) => (
-        <Clickable key={`${item.repo}-${item.issue}-${item.reason}`} onClick={() => onSelect(item)}>
-          <Hoverable>
-            {(hovered) => (
-              <Box>
-                <Text>
-                  <Text>{clamped === i ? '▸' : hovered ? '›' : ' '}</Text>
-                  <Text bold color={REASON_COLORS[item.reason] ?? 'white'}>{item.prefix}</Text>
-                  <Text dimColor> #{item.issue}</Text>
-                  <Text color={REASON_COLORS[item.reason] ?? 'white'}> {item.reason}</Text>
-                  <Text dimColor> {formatAge(item.since)}</Text>
-                  <Text>  {item.title}</Text>
-                  {item.detail ? <Text dimColor>  ({item.detail})</Text> : null}
-                </Text>
-              </Box>
-            )}
-          </Hoverable>
-        </Clickable>
+        <Box key={`${item.repo}-${item.issue}-${item.reason}`}>
+          <Text>
+            <Text>{clamped === i ? '▸' : ' '}</Text>
+            <Text bold color={REASON_COLORS[item.reason] ?? 'white'}>{item.prefix}</Text>
+            <Text dimColor> #{item.issue}</Text>
+            <Text color={REASON_COLORS[item.reason] ?? 'white'}> {item.reason}</Text>
+            <Text dimColor> {formatAge(item.since)}</Text>
+            <Text>  {item.title}</Text>
+            {item.detail ? <Text dimColor>  ({item.detail})</Text> : null}
+          </Text>
+        </Box>
       ))}
     </Box>
   );
