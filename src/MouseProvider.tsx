@@ -10,6 +10,46 @@ interface MouseContextValue {
 
 const MouseContext = createContext<MouseContextValue | null>(null);
 
+const DISABLE_MOUSE = '\x1b[?1000l\x1b[?1006l';
+
+let exitHandlersInstalled = false;
+
+/** Write the escape sequence that turns off xterm mouse tracking. */
+export function disableMouseTracking(): void {
+  try {
+    process.stdout.write(DISABLE_MOUSE);
+  } catch {
+    // stdout may already be destroyed during exit
+  }
+}
+
+export function installExitHandlers(): void {
+  if (exitHandlersInstalled) return;
+  exitHandlersInstalled = true;
+
+  process.on('exit', () => disableMouseTracking());
+
+  for (const sig of ['SIGINT', 'SIGTERM'] as const) {
+    process.on(sig, () => {
+      disableMouseTracking();
+      // Re-raise so the process exits with the correct signal code
+      process.kill(process.pid, sig);
+    });
+  }
+
+  process.on('uncaughtException', (err) => {
+    disableMouseTracking();
+    // Print the original error and exit with failure
+    console.error(err);
+    process.exit(1);
+  });
+}
+
+/** Reset module state -- only for tests. */
+export function _resetExitHandlers(): void {
+  exitHandlersInstalled = false;
+}
+
 export function useMouseClick(handler: ClickHandler) {
   const ctx = useContext(MouseContext);
   useEffect(() => {
@@ -29,9 +69,9 @@ export function MouseProvider({ children }: { children: React.ReactNode }) {
     setRawMode(true);
     stdout.write('\x1b[?1000h'); // enable button event tracking
     stdout.write('\x1b[?1006h'); // enable SGR extended mouse mode
+    installExitHandlers();
     return () => {
-      stdout.write('\x1b[?1000l');
-      stdout.write('\x1b[?1006l');
+      disableMouseTracking();
     };
   }, [stdout, stdin, setRawMode]);
 
