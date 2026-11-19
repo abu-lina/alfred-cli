@@ -10,6 +10,13 @@ interface MouseContextValue {
 
 const MouseContext = createContext<MouseContextValue | null>(null);
 
+// Also called from process exit handlers, where stdout may already be closed (EPIPE)
+export function disableMouseTracking(out: { write: (s: string) => unknown }) {
+  try {
+    out.write('\x1b[?1000l\x1b[?1006l');
+  } catch { /* nothing left to restore */ }
+}
+
 export function useMouseClick(handler: ClickHandler) {
   const ctx = useContext(MouseContext);
   useEffect(() => {
@@ -29,10 +36,7 @@ export function MouseProvider({ children }: { children: React.ReactNode }) {
     setRawMode(true);
     stdout.write('\x1b[?1000h'); // enable button event tracking
     stdout.write('\x1b[?1006h'); // enable SGR extended mouse mode
-    return () => {
-      stdout.write('\x1b[?1000l');
-      stdout.write('\x1b[?1006l');
-    };
+    return () => disableMouseTracking(stdout);
   }, [stdout, stdin, setRawMode]);
 
   // Listen for mouse data on stdin
