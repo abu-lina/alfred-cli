@@ -84,6 +84,7 @@ export interface WatchCallbacks {
   onSignal: (signal: LaneSignal) => void;
   onNotes: (notes: LaneNotes) => void;
   onReview: (review: ReviewResult) => void;
+  onError?: (err: unknown) => void;
 }
 
 function issueFromDirName(name: string): number {
@@ -145,18 +146,20 @@ export function watchProject(projectPath: string, callbacks: WatchCallbacks): ()
 
     try {
       const wt = watch(wtDir, (_, filename) => handleFile(filename));
+      wt.on('error', (err) => callbacks.onError?.(err));
       watchers.push(wt);
-    } catch {
-      // worktree dir may not exist yet
+    } catch (err) {
+      callbacks.onError?.(err);
     }
 
     const reviewDir = join(wtDir, '.review-results');
     if (existsSync(reviewDir)) {
       try {
         const rw = watch(reviewDir, (_, filename) => handleReviewFile(filename));
+        rw.on('error', (err) => callbacks.onError?.(err));
         watchers.push(rw);
-      } catch {
-        // review dir may disappear
+      } catch (err) {
+        callbacks.onError?.(err);
       }
     }
   };
@@ -184,9 +187,10 @@ export function watchProject(projectPath: string, callbacks: WatchCallbacks): ()
         watchedDirs.delete(dir);
       }
     });
+    dirWatcher.on('error', (err) => callbacks.onError?.(err));
     watchers.push(dirWatcher);
-  } catch {
-    // worktrees dir might not be watchable
+  } catch (err) {
+    callbacks.onError?.(err);
   }
 
   return () => {
