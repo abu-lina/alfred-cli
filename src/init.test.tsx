@@ -1,11 +1,19 @@
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
+
+vi.mock('node:child_process', () => ({
+  execSync: vi.fn(),
+}));
+
 import React from 'react';
 import { render } from 'ink-testing-library';
 import { join } from 'node:path';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { execSync } from 'node:child_process';
 import { loadConfig } from './config.js';
+
+const execSyncMock = vi.mocked(execSync);
 
 const DELAY = 50;
 const wait = (ms = DELAY) => new Promise(r => setTimeout(r, ms));
@@ -19,6 +27,12 @@ function tmpDir(): string {
   return d;
 }
 
+/** Ensure a directory exists and register it for cleanup. */
+function ensureDir(p: string): void {
+  mkdirSync(p, { recursive: true });
+  dirs.push(p);
+}
+
 function writeExistingConfig(configPath: string, projects = [
   { name: 'old', prefix: 'OL', path: '/tmp/old', repo: 'o/old', rexSession: 'old-foreman' },
 ]) {
@@ -27,6 +41,10 @@ function writeExistingConfig(configPath: string, projects = [
     github: { pollIntervalSeconds: 60 },
   }));
 }
+
+beforeEach(() => {
+  execSyncMock.mockReturnValue(Buffer.from(''));
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -63,6 +81,7 @@ describe('Init component', () => {
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
+    ensureDir('/tmp/myproject');
     const inst = render(<Init configPath={configPath} />);
     await wait();
 
@@ -116,6 +135,7 @@ describe('Init component', () => {
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
+    ensureDir('/tmp/test');
     const inst = render(<Init configPath={configPath} />);
     await wait();
 
@@ -166,6 +186,8 @@ describe('Init component', () => {
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
+    ensureDir('/tmp/proj1');
+    ensureDir('/tmp/proj2');
     const inst = render(<Init configPath={configPath} />);
     await wait();
 
@@ -277,6 +299,7 @@ describe('Init component', () => {
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
+    ensureDir('/tmp/old');
     writeExistingConfig(configPath);
 
     const inst = render(<Init configPath={configPath} />);
@@ -318,6 +341,7 @@ describe('Init component', () => {
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
+    ensureDir('/tmp/old');
     writeExistingConfig(configPath);
 
     const inst = render(<Init configPath={configPath} />);
@@ -369,6 +393,7 @@ describe('Init component', () => {
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
+    ensureDir('/tmp/old');
     writeExistingConfig(configPath);
 
     const inst = render(<Init configPath={configPath} />);
@@ -420,6 +445,8 @@ describe('Init component', () => {
     const { Init } = await importInit();
     const dir = tmpDir();
     const configPath = join(dir, 'config.json');
+    ensureDir('/tmp/alpha');
+    ensureDir('/tmp/beta');
     writeExistingConfig(configPath, [
       { name: 'alpha', prefix: 'AA', path: '/tmp/alpha', repo: 'o/alpha', rexSession: 'alpha-f' },
       { name: 'beta', prefix: 'BB', path: '/tmp/beta', repo: 'o/beta', rexSession: 'beta-f' },
@@ -466,6 +493,106 @@ describe('Init component', () => {
     expect(cfg.projects).toHaveLength(2);
     expect(cfg.projects[0]!.name).toBe('alpha');
     expect(cfg.projects[1]!.name).toBe('beta');
+    inst.unmount();
+  });
+
+  it('shows error when path does not exist', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const configPath = join(dir, 'config.json');
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    inst.stdin.write('test');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('TT');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    // Use a path that doesn't exist
+    inst.stdin.write('/nonexistent/path/to/project');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('owner/test');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('test-foreman');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    // Should show path error and return to path field
+    expect(inst.lastFrame()).toContain('does not exist');
+    expect(inst.lastFrame()).toContain('Local path');
+    inst.unmount();
+  });
+
+  it('shows error when gh repo is not accessible', async () => {
+    const { Init } = await importInit();
+    const dir = tmpDir();
+    const projectDir = join(dir, 'myproject');
+    mkdirSync(projectDir, { recursive: true });
+    const configPath = join(dir, 'config.json');
+
+    // Make gh repo view fail for this specific repo
+    execSyncMock.mockImplementation((cmd: string) => {
+      if (typeof cmd === 'string' && cmd.includes('nonexistent/repo')) {
+        throw new Error('gh: not found');
+      }
+      return Buffer.from('');
+    });
+
+    const inst = render(<Init configPath={configPath} />);
+    await wait();
+
+    inst.stdin.write('test');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('TT');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write(projectDir);
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('nonexistent/repo');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    inst.stdin.write('test-foreman');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+
+    // Should show repo error and return to repo field
+    expect(inst.lastFrame()).toContain('Cannot access GitHub repo');
+    expect(inst.lastFrame()).toContain('GitHub repo');
+
+    // User can fix by entering a valid repo
+    execSyncMock.mockImplementation(() => Buffer.from(''));
+    // Clear old input
+    for (let i = 0; i < 'nonexistent/repo'.length; i++) {
+      inst.stdin.write('\x7f');
+      await wait();
+    }
+    inst.stdin.write('owner/test');
+    await wait();
+    inst.stdin.write('\r');
+    await wait();
+    // Re-enter rexSession (should be pre-filled from draft)
+    inst.stdin.write('\r');
+    await wait();
+
+    expect(inst.lastFrame()).toContain('Add another');
+    inst.stdin.write('n');
+    await wait();
+    expect(inst.lastFrame()).toContain('Config saved');
     inst.unmount();
   });
 });

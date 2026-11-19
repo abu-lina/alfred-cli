@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Text, Box, useInput, useApp } from 'ink';
-import { existsSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { loadConfig, saveConfig, validateProject, type Config, type ProjectConfig } from './config.js';
 
 interface Props {
@@ -109,6 +110,9 @@ export function Init({ configPath }: Props) {
       // Pre-fill next field if editing an existing project
       if (editIndex >= 0 && editIndex < projects.length) {
         prefillField(projects[editIndex]!, nextIdx);
+      } else if (updated[FIELDS[nextIdx]!.key]) {
+        // Pre-fill from draft (after runtime validation jumped back)
+        setInput(updated[FIELDS[nextIdx]!.key]!);
       }
     } else {
       const project = updated as ProjectConfig;
@@ -118,6 +122,22 @@ export function Init({ configPath }: Props) {
       const validationErrors = validateProject(project, otherPrefixes);
       if (validationErrors.length > 0) {
         setError(validationErrors.join(', '));
+        return;
+      }
+      // Runtime validation: check path exists on disk
+      if (!existsSync(project.path) || !statSync(project.path).isDirectory()) {
+        setError(`Path does not exist or is not a directory: ${project.path}`);
+        setFieldIndex(2); // jump back to path field
+        setInput(project.path);
+        return;
+      }
+      // Runtime validation: check repo accessible via gh
+      try {
+        execSync(`gh repo view ${project.repo}`, { stdio: 'ignore' });
+      } catch {
+        setError(`Cannot access GitHub repo: ${project.repo} (check that it exists and you have access)`);
+        setFieldIndex(3); // jump back to repo field
+        setInput(project.repo);
         return;
       }
       if (editIndex >= 0 && editIndex < projects.length) {
