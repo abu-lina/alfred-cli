@@ -15,6 +15,7 @@ import { HeaderBar } from './HeaderBar.js';
 import { TasksView } from './TasksView.js';
 import { StandupView } from './StandupView.js';
 import { useNavigation } from './useNavigation.js';
+import { MouseProvider } from './MouseProvider.js';
 import type { RefreshState } from './types.js';
 import { emptyRefreshState } from './types.js';
 
@@ -61,6 +62,7 @@ function App({ config }: { config: import('./config.js').Config }) {
   const tasksNotes = filesState?.notes.find(n => tasksRoute && n.issue === tasksRoute.issue);
 
   return (
+    <MouseProvider>
     <Box flexDirection="column">
       <HeaderBar view={nav.view} canGoBack={nav.canGoBack} onBack={nav.back} onNavigateTo={nav.navigateTo} projectCount={config.projects.length} />
       {nav.view.type === 'inbox' && (
@@ -76,6 +78,7 @@ function App({ config }: { config: import('./config.js').Config }) {
         <TasksView repo={tasksRoute.repo} issue={tasksRoute.issue} reviews={tasksReviews} notes={tasksNotes} />
       )}
     </Box>
+    </MouseProvider>
   );
 }
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Text, Box, useInput } from 'ink';
 import type { BoardColumns, BoardCard } from './board.js';
 import { formatAge } from './format.js';
+import { Clickable } from './Clickable.js';
 
 interface Props {
   columns: BoardColumns;
@@ -45,7 +46,9 @@ function Column({ name, cards, focusIndex, offset, onSelect }: { name: BoardCard
         <Text dimColor> ({cards.length})</Text>
       </Box>
       {cards.map((c, i) => (
-        <Card key={`${c.repo}-${c.issue}`} card={c} focused={focusIndex === offset + i} />
+        <Clickable key={`${c.repo}-${c.issue}`} onClick={() => onSelect(c)}>
+          <Card card={c} focused={focusIndex === offset + i} />
+        </Clickable>
       ))}
     </Box>
   );
