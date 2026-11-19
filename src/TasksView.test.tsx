@@ -236,4 +236,15 @@ describe('TasksView — lane notes', () => {
     expect(inst.lastFrame()).toContain('#8');
     inst.unmount();
   });
+
+  it('strips ANSI escape sequences from notes content', () => {
+    const raw = '## Goal\n\x1b[31mmalicious\x1b[0m goal\x00here\n\n## Plan\n- [ ] a task';
+    const inst = render(<TasksView repo="owner/repo" issue={8} reviews={[]} notes={notes(raw)} />);
+    const frame = inst.lastFrame()!;
+    expect(frame).toContain('malicious');
+    expect(frame).toContain('goal');
+    expect(frame).not.toContain('\x1b[31m');
+    expect(frame).not.toContain('\x00');
+    inst.unmount();
+  });
 });

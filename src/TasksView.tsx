@@ -77,7 +77,7 @@ export function TasksView({ repo, issue, reviews, notes }: Props) {
 }
 
 function LaneNotesDetail({ raw }: { raw: string }) {
-  const s = parseLaneNotesSections(raw);
+  const s = parseLaneNotesSections(sanitizeContent(raw));
   return (
     <Box flexDirection="column" marginTop={1}>
       {s.goal ? (
